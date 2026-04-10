@@ -1,0 +1,354 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  overflow: hidden;
+}
+
+:root {
+  --bg-primary: #1a1a2e;
+  --bg-secondary: #16213e;
+  --bg-card: #0f3460;
+  --accent: #e94560;
+  --accent-glow: rgba(233, 69, 96, 0.4);
+  --text-primary: #eee;
+  --text-secondary: #aaa;
+  --border: rgba(255, 255, 255, 0.1);
+  --gold: #f5a623;
+}
+
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.loading-state {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+}
+
+/* ===== Header ===== */
+.app-header {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  min-height: 40px;
+  gap: 8px;
+}
+
+.header-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.header-title .icon {
+  font-size: 16px;
+}
+
+.header-center {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+
+.lang-select {
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 4px;
+  font-size: 11px;
+  cursor: pointer;
+  outline: none;
+}
+
+.lang-select:hover {
+  border-color: var(--text-secondary);
+}
+
+.round-badge {
+  background: var(--accent);
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+/* ===== Initiative List ===== */
+.initiative-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 6px 6px 2px;
+}
+
+/* ===== Initiative Item — image as full background ===== */
+.initiative-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 52px;
+  margin-bottom: 4px;
+  margin-left: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.3s ease;
+  border: 2px solid transparent;
+}
+
+/* Active item: slide right like a "selected slot" */
+.initiative-item.active {
+  margin-left: 16px;
+  border-color: var(--accent);
+  box-shadow: 0 0 10px var(--accent-glow);
+}
+
+/* Image background layer */
+.item-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.item-bg img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Center on the middle of the image (faces are usually top-center for tokens) */
+  object-position: center center;
+}
+
+.item-bg-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  background: var(--bg-card);
+}
+
+/* Gradient overlay for text readability */
+.item-bg-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.1) 0%,
+    rgba(0, 0, 0, 0.4) 50%,
+    rgba(0, 0, 0, 0.7) 100%
+  );
+}
+
+.initiative-item.active .item-bg-overlay {
+  background: linear-gradient(
+    90deg,
+    rgba(233, 69, 96, 0.1) 0%,
+    rgba(0, 0, 0, 0.35) 50%,
+    rgba(0, 0, 0, 0.65) 100%
+  );
+}
+
+/* Name overlaid on the image */
+.item-name-overlay {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  padding: 0 10px;
+  font-weight: 600;
+  font-size: 13px;
+  color: white;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Count badge */
+.item-count {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  margin-right: 8px;
+}
+
+.count-display {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 28px;
+  padding: 0 6px;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  border-radius: 6px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--gold);
+  cursor: pointer;
+  transition: all 0.15s;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.count-display:hover {
+  border-color: var(--gold);
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.count-input {
+  width: 50px;
+  height: 28px;
+  background: rgba(0, 0, 0, 0.7);
+  border: 2px solid var(--gold);
+  border-radius: 6px;
+  color: var(--gold);
+  font-size: 15px;
+  font-weight: 700;
+  text-align: center;
+  outline: none;
+}
+
+.count-input::-webkit-inner-spin-button,
+.count-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* ===== Empty state ===== */
+.empty-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 30px 16px;
+  text-align: center;
+}
+
+.empty-icon {
+  font-size: 40px;
+  margin-bottom: 10px;
+  opacity: 0.4;
+}
+
+.empty-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.empty-hint {
+  font-size: 12px;
+  color: var(--text-secondary);
+  opacity: 0.6;
+  line-height: 1.4;
+}
+
+/* ===== Combat controls ===== */
+.combat-controls {
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-secondary);
+}
+
+.turn-controls {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 7px 12px;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  color: white;
+}
+
+.btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.btn-start {
+  width: 100%;
+  background: linear-gradient(135deg, #e94560, #c0392b);
+  font-size: 14px;
+  padding: 9px;
+}
+
+.btn-start:hover:not(:disabled) {
+  box-shadow: 0 3px 10px rgba(233, 69, 96, 0.4);
+}
+
+.btn-start .btn-icon {
+  font-size: 16px;
+}
+
+.btn-prev,
+.btn-next {
+  flex: 1;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+}
+
+.btn-prev:hover,
+.btn-next:hover {
+  border-color: var(--accent);
+}
+
+.btn-end {
+  width: 100%;
+  background: rgba(231, 76, 60, 0.15);
+  border: 1px solid rgba(231, 76, 60, 0.35);
+  color: #e74c3c;
+}
+
+.btn-end:hover {
+  background: rgba(231, 76, 60, 0.25);
+}
+
+/* ===== Scrollbar ===== */
+.initiative-list::-webkit-scrollbar {
+  width: 3px;
+}
+
+.initiative-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.initiative-list::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 2px;
+}

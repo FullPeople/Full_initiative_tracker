@@ -1,0 +1,198 @@
+/* ===== Combat Effect Overlay ===== */
+.combat-effect-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.effect-flash {
+  position: absolute;
+  inset: 0;
+  background: white;
+  opacity: 0;
+}
+
+.phase-enter .effect-flash {
+  animation: flash 0.3s ease-out forwards;
+}
+
+@keyframes flash {
+  0% { opacity: 0; }
+  30% { opacity: 0.8; }
+  100% { opacity: 0; }
+}
+
+.effect-vignette {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background: radial-gradient(ellipse at center, transparent 40%, rgba(233, 69, 96, 0.6) 100%);
+}
+
+.phase-show .effect-vignette {
+  animation: vignetteIn 0.5s ease-out forwards;
+}
+
+.phase-exit .effect-vignette {
+  animation: vignetteOut 0.6s ease-in forwards;
+}
+
+@keyframes vignetteIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes vignetteOut { from { opacity: 1; } to { opacity: 0; } }
+
+.effect-content {
+  position: relative;
+  text-align: center;
+  opacity: 0;
+  transform: scale(0.5);
+}
+
+.phase-show .effect-content {
+  animation: contentIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.phase-exit .effect-content {
+  animation: contentOut 0.5s ease-in forwards;
+}
+
+@keyframes contentIn {
+  from { opacity: 0; transform: scale(0.5); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes contentOut {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(1.5); }
+}
+
+.swords-container {
+  margin-bottom: 16px;
+}
+
+.sword {
+  font-size: 72px;
+  filter: drop-shadow(0 0 20px rgba(233, 69, 96, 0.8));
+}
+
+.phase-show .sword {
+  animation: swordPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes swordPulse {
+  0%, 100% { filter: drop-shadow(0 0 20px rgba(233, 69, 96, 0.8)); }
+  50% { filter: drop-shadow(0 0 40px rgba(233, 69, 96, 1)); }
+}
+
+.combat-text {
+  font-size: 48px;
+  font-weight: 900;
+  color: #fff;
+  text-shadow:
+    0 0 20px rgba(233, 69, 96, 0.8),
+    0 0 60px rgba(233, 69, 96, 0.4),
+    0 2px 4px rgba(0, 0, 0, 0.5);
+  letter-spacing: 4px;
+  text-transform: uppercase;
+}
+
+.combat-subtext {
+  font-size: 18px;
+  color: rgba(255, 255, 255, 0.7);
+  margin-top: 8px;
+  font-weight: 400;
+  letter-spacing: 2px;
+  text-shadow: 0 0 10px rgba(233, 69, 96, 0.5);
+}
+
+/* ===== New Item Dialog ===== */
+.new-item-dialog {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 28px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: #1a1a2e;
+  color: #eee;
+  min-height: 100%;
+}
+
+.dialog-title {
+  font-size: 17px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.dialog-name {
+  font-size: 13px;
+  color: #aaa;
+  margin-bottom: 18px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dialog-input {
+  width: 140px;
+  height: 40px;
+  background: #0f3460;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: #f5a623;
+  font-size: 22px;
+  font-weight: 700;
+  text-align: center;
+  outline: none;
+  margin-bottom: 20px;
+}
+
+.dialog-input:focus {
+  border-color: #f5a623;
+}
+
+.dialog-input::-webkit-inner-spin-button,
+.dialog-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+}
+
+.dialog-buttons {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  justify-content: center;
+}
+
+.btn-cancel {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 8px 24px;
+  border-radius: 6px;
+  color: #aaa;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.btn-cancel:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.btn-confirm {
+  background: linear-gradient(135deg, #e94560, #c0392b);
+  border: none;
+  padding: 8px 24px;
+  border-radius: 6px;
+  color: white;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.btn-confirm:hover {
+  box-shadow: 0 2px 8px rgba(233, 69, 96, 0.4);
+}

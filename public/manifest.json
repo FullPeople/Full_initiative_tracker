@@ -1,0 +1,15 @@
+{
+  "name": "Full Initiative Tracker",
+  "version": "1.0.0",
+  "manifest_version": 1,
+  "author": "FullPeople",
+  "description": "A full-featured initiative tracker with combat effects, camera focus, turn management, and i18n support",
+  "icon": "/icon.svg",
+  "action": {
+    "title": "Initiative Tracker",
+    "icon": "/icon.svg",
+    "popover": "/index.html",
+    "height": 500,
+    "width": 300
+  }
+}
