@@ -130,8 +130,8 @@ function App() {
           OBR.modal.open({
             id: NEW_ITEM_DIALOG_ID,
             url: `${import.meta.env.BASE_URL}new-item-dialog.html?itemId=${item.id}&itemName=${encodeURIComponent(item.name)}&lang=${getStoredLang()}`,
-            width: 350,
-            height: 160,
+            width: 300,
+            height: 200,
           });
         }
       }
