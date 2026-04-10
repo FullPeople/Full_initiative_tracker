@@ -8,18 +8,20 @@ function NewItemDialogPage() {
   const [ready, setReady] = useState(false);
   const [itemId, setItemId] = useState("");
   const [itemName, setItemName] = useState("");
+  const [lang, setLang] = useState("zh");
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     setItemId(params.get("itemId") || "");
     setItemName(params.get("itemName") || "");
+    setLang(params.get("lang") || "zh");
 
     OBR.onReady(() => setReady(true));
   }, []);
 
   if (!ready || !itemId) return null;
 
-  return <NewItemDialog itemId={itemId} itemName={itemName} />;
+  return <NewItemDialog itemId={itemId} itemName={itemName} lang={lang} />;
 }
 
 const root = createRoot(document.getElementById("root")!);

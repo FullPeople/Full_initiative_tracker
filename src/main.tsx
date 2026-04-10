@@ -129,9 +129,9 @@ function App() {
           knownItemIds.current.add(item.id);
           OBR.modal.open({
             id: NEW_ITEM_DIALOG_ID,
-            url: `${import.meta.env.BASE_URL}new-item-dialog.html?itemId=${item.id}&itemName=${encodeURIComponent(item.name)}`,
-            width: 400,
-            height: 220,
+            url: `${import.meta.env.BASE_URL}new-item-dialog.html?itemId=${item.id}&itemName=${encodeURIComponent(item.name)}&lang=${getStoredLang()}`,
+            width: 350,
+            height: 160,
           });
         }
       }
@@ -172,6 +172,7 @@ function App() {
               <option value="en">EN</option>
               <option value="zh">中文</option>
             </select>
+            <span className="hint-icon" title={t(lang, "dragHint")}>?</span>
           </div>
 
           {combatState.inCombat && (

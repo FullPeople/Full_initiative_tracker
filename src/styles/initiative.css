@@ -66,6 +66,23 @@ body {
   flex: 1;
   display: flex;
   justify-content: center;
+  align-items: center;
+  gap: 4px;
+}
+
+.hint-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--border);
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 700;
+  cursor: help;
+  flex-shrink: 0;
 }
 
 .lang-select {

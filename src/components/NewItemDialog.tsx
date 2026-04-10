@@ -5,10 +5,12 @@ import { METADATA_KEY, NEW_ITEM_DIALOG_ID } from "../utils/constants";
 interface Props {
   itemId: string;
   itemName: string;
+  lang: string;
 }
 
-export function NewItemDialog({ itemId, itemName }: Props) {
+export function NewItemDialog({ itemId, itemName, lang }: Props) {
   const [value, setValue] = useState("");
+  const isZh = lang === "zh";
 
   const handleSubmit = async () => {
     const count = parseFloat(value);
@@ -33,12 +35,12 @@ export function NewItemDialog({ itemId, itemName }: Props) {
 
   return (
     <div className="new-item-dialog">
-      <div className="dialog-title">Set Initiative</div>
-      <div className="dialog-name">{itemName || "New Character"}</div>
+      <div className="dialog-title">{isZh ? "设置先攻" : "Set Initiative"}</div>
+      <div className="dialog-name">{itemName || (isZh ? "新角色" : "New Character")}</div>
       <input
         type="number"
         className="dialog-input"
-        placeholder="Initiative value"
+        placeholder={isZh ? "先攻值" : "Initiative"}
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={handleKeyDown}
@@ -46,10 +48,10 @@ export function NewItemDialog({ itemId, itemName }: Props) {
       />
       <div className="dialog-buttons">
         <button className="btn btn-cancel" onClick={handleCancel}>
-          Skip
+          {isZh ? "跳过" : "Skip"}
         </button>
         <button className="btn btn-confirm" onClick={handleSubmit}>
-          Add
+          {isZh ? "添加" : "Add"}
         </button>
       </div>
     </div>

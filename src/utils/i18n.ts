@@ -20,6 +20,7 @@ const translations = {
     initiativeValue: "Initiative value",
     loading: "Loading...",
     addFirst: "Add characters first",
+    dragHint: "Drag a Character into the scene during combat to quickly add it to the initiative list",
   },
   zh: {
     initiative: "先攻",
@@ -40,6 +41,7 @@ const translations = {
     initiativeValue: "先攻值",
     loading: "加载中...",
     addFirst: "请先添加角色",
+    dragHint: "在战斗中拖拽 Character 角色到场景中，可以快速加入先攻列表",
   },
 } as const;
 
@@ -54,7 +56,7 @@ export function getStoredLang(): Lang {
     const stored = localStorage.getItem("initiative-tracker-lang");
     if (stored === "zh" || stored === "en") return stored;
   } catch {}
-  return "en";
+  return "zh";
 }
 
 export function setStoredLang(lang: Lang) {
