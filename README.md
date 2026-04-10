@@ -13,7 +13,7 @@ A full-featured initiative tracker extension for [Owlbear Rodeo](https://www.owl
 Paste the following URL into **Owlbear Rodeo → Settings → Extensions → Add Custom Extension**:
 
 ```
-https://fullpeople.github.io/Full_initiative_tracker/manifest.json
+https://obr.dnd.center/initiative/manifest.json
 ```
 
 ### Features
@@ -73,7 +73,7 @@ MIT
 将以下链接粘贴到 **Owlbear Rodeo → 设置 → 扩展 → 添加自定义扩展**：
 
 ```
-https://fullpeople.github.io/Full_initiative_tracker/manifest.json
+https://obr.dnd.center/initiative/manifest.json
 ```
 
 ### 功能
