@@ -49,7 +49,7 @@ export function useInitiative() {
     const unsubStart = OBR.broadcast.onMessage(BROADCAST_COMBAT_START, () => {
       OBR.modal.open({
         id: COMBAT_EFFECT_MODAL_ID,
-        url: "/combat-effect.html",
+        url: `${import.meta.env.BASE_URL}combat-effect.html`,
         width: 600,
         height: 400,
         fullScreen: true,

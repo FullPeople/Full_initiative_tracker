@@ -11,7 +11,7 @@ OBR.onReady(async () => {
     id: `${METADATA_KEY}/context-menu`,
     icons: [
       {
-        icon: "/icon.svg",
+        icon: `${import.meta.env.BASE_URL}icon.svg`,
         label: "Add to Initiative",
         filter: {
           every: [
@@ -22,7 +22,7 @@ OBR.onReady(async () => {
         },
       },
       {
-        icon: "/icon.svg",
+        icon: `${import.meta.env.BASE_URL}icon.svg`,
         label: "Remove from Initiative",
         filter: {
           every: [{ key: "type", value: "IMAGE" }],
@@ -108,7 +108,7 @@ OBR.onReady(async () => {
         // Open dialog to input initiative for new item
         OBR.modal.open({
           id: NEW_ITEM_DIALOG_ID,
-          url: `/new-item-dialog.html?itemId=${item.id}&itemName=${encodeURIComponent(item.name)}`,
+          url: `${import.meta.env.BASE_URL}new-item-dialog.html?itemId=${item.id}&itemName=${encodeURIComponent(item.name)}`,
           width: 320,
           height: 180,
         });

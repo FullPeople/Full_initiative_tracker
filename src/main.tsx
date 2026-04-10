@@ -43,7 +43,7 @@ function App() {
       id: `${METADATA_KEY}/context-menu`,
       icons: [
         {
-          icon: "/icon.svg",
+          icon: `${import.meta.env.BASE_URL}icon.svg`,
           label: t(lang, "addToInitiative"),
           filter: {
             every: [
@@ -53,7 +53,7 @@ function App() {
           },
         },
         {
-          icon: "/icon.svg",
+          icon: `${import.meta.env.BASE_URL}icon.svg`,
           label: t(lang, "removeFromInitiative"),
           filter: {
             every: [
@@ -129,7 +129,7 @@ function App() {
           knownItemIds.current.add(item.id);
           OBR.modal.open({
             id: NEW_ITEM_DIALOG_ID,
-            url: `/new-item-dialog.html?itemId=${item.id}&itemName=${encodeURIComponent(item.name)}`,
+            url: `${import.meta.env.BASE_URL}new-item-dialog.html?itemId=${item.id}&itemName=${encodeURIComponent(item.name)}`,
             width: 400,
             height: 220,
           });
