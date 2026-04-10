@@ -13,14 +13,11 @@
   "description": "",
   "dependencies": {
     "@owlbear-rodeo/sdk": "^3.1.0",
-    "react": "^19.2.5",
-    "react-dom": "^19.2.5"
+    "preact": "^10.29.1"
   },
   "devDependencies": {
-    "@types/react": "^19.2.14",
-    "@types/react-dom": "^19.2.3",
+    "@preact/preset-vite": "^2.10.5",
     "@vitejs/plugin-basic-ssl": "^2.3.0",
-    "@vitejs/plugin-react": "^6.0.1",
     "typescript": "^6.0.2",
     "vite": "^8.0.8"
   }

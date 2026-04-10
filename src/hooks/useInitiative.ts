@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo } from "preact/compat";
 import OBR from "@owlbear-rodeo/sdk";
 import { InitiativeItem, CombatState } from "../types";
 import {
@@ -71,22 +71,23 @@ export function useInitiative() {
       refreshItems();
     });
 
-    // Focus broadcast: all players focus camera on the given item
+    // Focus broadcast: all players focus camera — parallel queries
     const unsubFocus = OBR.broadcast.onMessage(
       BROADCAST_FOCUS,
       async (event) => {
         const itemId = (event.data as any)?.itemId;
         if (!itemId) return;
 
-        const targetItems = await OBR.scene.items.getItems([itemId]);
+        const [targetItems, vpWidth, vpHeight, currentScale] = await Promise.all([
+          OBR.scene.items.getItems([itemId]),
+          OBR.viewport.getWidth(),
+          OBR.viewport.getHeight(),
+          OBR.viewport.getScale(),
+        ]);
         if (targetItems.length === 0) return;
 
         const pos = targetItems[0].position;
-        const vpWidth = await OBR.viewport.getWidth();
-        const vpHeight = await OBR.viewport.getHeight();
-        const currentScale = await OBR.viewport.getScale();
-
-        await OBR.viewport.animateTo({
+        OBR.viewport.animateTo({
           position: {
             x: -pos.x * currentScale + vpWidth / 2,
             y: -pos.y * currentScale + vpHeight / 2,
@@ -117,17 +118,18 @@ export function useInitiative() {
     };
   }, [refreshItems, refreshCombat]);
 
-  // Focus camera locally (for GM's own view, keeps current scale)
+  // Focus camera locally — all queries in parallel for speed
   const focusItem = useCallback(async (itemId: string) => {
-    const targetItems = await OBR.scene.items.getItems([itemId]);
+    const [targetItems, vpWidth, vpHeight, currentScale] = await Promise.all([
+      OBR.scene.items.getItems([itemId]),
+      OBR.viewport.getWidth(),
+      OBR.viewport.getHeight(),
+      OBR.viewport.getScale(),
+    ]);
     if (targetItems.length === 0) return;
 
     const pos = targetItems[0].position;
-    const vpWidth = await OBR.viewport.getWidth();
-    const vpHeight = await OBR.viewport.getHeight();
-    const currentScale = await OBR.viewport.getScale();
-
-    await OBR.viewport.animateTo({
+    OBR.viewport.animateTo({
       position: {
         x: -pos.x * currentScale + vpWidth / 2,
         y: -pos.y * currentScale + vpHeight / 2,
@@ -136,11 +138,10 @@ export function useInitiative() {
     });
   }, []);
 
-  // Broadcast focus to ALL players (including self)
+  // Broadcast focus to ALL players — fire-and-forget, don't await
   const broadcastFocus = useCallback(async (itemId: string) => {
-    await OBR.broadcast.sendMessage(BROADCAST_FOCUS, { itemId });
-    // Also focus locally (broadcast may not echo to sender)
-    await focusItem(itemId);
+    OBR.broadcast.sendMessage(BROADCAST_FOCUS, { itemId });
+    focusItem(itemId);
   }, [focusItem]);
 
   const updateCount = useCallback(async (itemId: string, count: number) => {
@@ -151,6 +152,29 @@ export function useInitiative() {
       }
     });
   }, []);
+
+  const updateModifier = useCallback(async (itemId: string, mod: number) => {
+    await OBR.scene.items.updateItems([itemId], (drafts) => {
+      for (const d of drafts) {
+        d.metadata["com.initiative-tracker/dexMod"] = mod;
+      }
+    });
+  }, []);
+
+  const rollInitiative = useCallback(async (itemId: string) => {
+    // Find the item's modifier
+    const item = allItems.find((i) => i.id === itemId);
+    const mod = item?.modifier ?? 0;
+    const roll = Math.floor(Math.random() * 20) + 1;
+    const total = roll + mod;
+    await OBR.scene.items.updateItems([itemId], (drafts) => {
+      for (const d of drafts) {
+        const existing = d.metadata[METADATA_KEY] as any;
+        d.metadata[METADATA_KEY] = { ...existing, count: total };
+      }
+    });
+    OBR.notification.show(`🎲 ${item?.name ?? ""}: ${roll}${mod >= 0 ? "+" : ""}${mod} = ${total}`);
+  }, [allItems]);
 
   const setActiveItem = useCallback(
     async (activeId: string) => {
@@ -235,6 +259,8 @@ export function useInitiative() {
     combatState,
     focusItem,
     updateCount,
+    updateModifier,
+    rollInitiative,
     startCombat,
     nextTurn,
     prevTurn,

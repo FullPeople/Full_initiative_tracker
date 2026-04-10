@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect } from "preact/compat";
 import OBR from "@owlbear-rodeo/sdk";
 
 export function usePlayerRole() {

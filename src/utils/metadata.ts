@@ -21,10 +21,14 @@ export function getImageUrl(item: Item): string {
 export function itemToInitiativeItem(item: Item): InitiativeItem | null {
   const data = getInitiativeData(item);
   if (!data) return null;
+  // Read dexMod from separate key or fallback to 0
+  const modKey = "com.initiative-tracker/dexMod";
+  const mod = typeof item.metadata[modKey] === "number" ? item.metadata[modKey] as number : 0;
   return {
     id: item.id,
     name: item.name,
     count: data.count,
+    modifier: mod,
     active: data.active,
     visible: item.visible,
     imageUrl: getImageUrl(item),

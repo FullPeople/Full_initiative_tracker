@@ -7,6 +7,7 @@ export interface InitiativeItem {
   id: string;
   name: string;
   count: number;
+  modifier: number;
   active: boolean;
   visible: boolean;
   imageUrl: string;

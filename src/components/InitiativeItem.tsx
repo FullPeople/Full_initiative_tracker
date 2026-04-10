@@ -1,50 +1,45 @@
-import React, { useState, useRef } from "react";
+import { useState, useRef } from "preact/compat";
 
 interface Props {
   id: string;
   name: string;
   count: number;
+  modifier: number;
   active: boolean;
   imageUrl: string;
   inCombat: boolean;
+  isGM: boolean;
   onFocus: (id: string) => void;
   onUpdateCount: (id: string, count: number) => void;
+  onUpdateModifier: (id: string, mod: number) => void;
+  onRoll: (id: string) => void;
 }
 
 export function InitiativeItemRow({
-  id,
-  name,
-  count,
-  active,
-  imageUrl,
-  inCombat,
-  onFocus,
-  onUpdateCount,
+  id, name, count, modifier, active, imageUrl,
+  inCombat, isGM, onFocus, onUpdateCount, onUpdateModifier, onRoll,
 }: Props) {
-  const [editing, setEditing] = useState(false);
-  const [editValue, setEditValue] = useState(String(count));
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [editingCount, setEditingCount] = useState(false);
+  const [editingMod, setEditingMod] = useState(false);
+  const [countVal, setCountVal] = useState(String(count));
+  const [modVal, setModVal] = useState(String(modifier));
+  const countRef = useRef<HTMLInputElement>(null);
+  const modRef = useRef<HTMLInputElement>(null);
 
-  const handleCountClick = () => {
-    setEditValue(String(count));
-    setEditing(true);
-    setTimeout(() => inputRef.current?.select(), 0);
+  const commitCount = () => {
+    setEditingCount(false);
+    const p = parseFloat(countVal);
+    if (!isNaN(p) && p !== count) onUpdateCount(id, p);
   };
 
-  const commitEdit = () => {
-    setEditing(false);
-    const parsed = parseFloat(editValue);
-    if (!isNaN(parsed) && parsed !== count) {
-      onUpdateCount(id, parsed);
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") commitEdit();
-    if (e.key === "Escape") setEditing(false);
+  const commitMod = () => {
+    setEditingMod(false);
+    const p = parseInt(modVal);
+    if (!isNaN(p) && p !== modifier) onUpdateModifier(id, p);
   };
 
   const isActive = active && inCombat;
+  const modStr = modifier >= 0 ? `+${modifier}` : `${modifier}`;
 
   return (
     <div
@@ -52,42 +47,77 @@ export function InitiativeItemRow({
       onClick={() => onFocus(id)}
       title={name}
     >
-      {/* Full image background */}
       <div className="item-bg">
         {imageUrl ? (
           <img src={imageUrl} alt="" draggable={false} />
         ) : (
-          <div className="item-bg-placeholder">
-            {name.charAt(0).toUpperCase()}
-          </div>
+          <div className="item-bg-placeholder">{name.charAt(0).toUpperCase()}</div>
         )}
         <div className="item-bg-overlay" />
       </div>
 
-      {/* Name over the image */}
       <div className="item-name-overlay">{name || "???"}</div>
 
-      {/* Initiative count */}
-      <div
-        className="item-count"
-        onClick={(e) => {
-          e.stopPropagation();
-          handleCountClick();
-        }}
-      >
-        {editing ? (
-          <input
-            ref={inputRef}
-            type="number"
-            className="count-input"
-            value={editValue}
-            onChange={(e) => setEditValue(e.target.value)}
-            onBlur={commitEdit}
-            onKeyDown={handleKeyDown}
-            autoFocus
-          />
-        ) : (
-          <span className="count-display">{count}</span>
+      <div className="item-controls" onClick={(e) => e.stopPropagation()}>
+        {/* Modifier field */}
+        <div
+          className="mod-field"
+          onClick={() => {
+            setModVal(String(modifier));
+            setEditingMod(true);
+            setTimeout(() => modRef.current?.select(), 0);
+          }}
+        >
+          {editingMod ? (
+            <input
+              ref={modRef}
+              type="number"
+              className="mod-input"
+              value={modVal}
+              onInput={(e) => setModVal((e.target as HTMLInputElement).value)}
+              onBlur={commitMod}
+              onKeyDown={(e) => { if (e.key === "Enter") commitMod(); if (e.key === "Escape") setEditingMod(false); }}
+              /* focus via ref */
+            />
+          ) : (
+            <span className="mod-display">{modStr}</span>
+          )}
+        </div>
+
+        {/* Initiative count */}
+        <div
+          className="item-count"
+          onClick={() => {
+            setCountVal(String(count));
+            setEditingCount(true);
+            setTimeout(() => countRef.current?.select(), 0);
+          }}
+        >
+          {editingCount ? (
+            <input
+              ref={countRef}
+              type="number"
+              className="count-input"
+              value={countVal}
+              onInput={(e) => setCountVal((e.target as HTMLInputElement).value)}
+              onBlur={commitCount}
+              onKeyDown={(e) => { if (e.key === "Enter") commitCount(); if (e.key === "Escape") setEditingCount(false); }}
+              /* focus via ref */
+            />
+          ) : (
+            <span className="count-display">{count}</span>
+          )}
+        </div>
+
+        {/* Roll button — GM only */}
+        {isGM && (
+          <button
+            className="roll-btn"
+            onClick={() => onRoll(id)}
+            title="1d20 + modifier"
+          >
+            🎲
+          </button>
         )}
       </div>
     </div>

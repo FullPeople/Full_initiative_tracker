@@ -1,14 +1,11 @@
 import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
+import preact from "@preact/preset-vite";
 import basicSsl from "@vitejs/plugin-basic-ssl";
 import { resolve } from "path";
 
 export default defineConfig(({ command }) => ({
-  // basicSsl only for local dev, not for build
-  plugins: command === "serve" ? [react(), basicSsl()] : [react()],
-  // GitHub Pages: set to "/<repo-name>/" for project sites, or "/" for user sites
-  // Change this to match your GitHub repo name
-  base: "/Full_initiative_tracker/",
+  plugins: command === "serve" ? [preact(), basicSsl()] : [preact()],
+  base: "/initiative/",
   server: {
     cors: {
       origin: "*",

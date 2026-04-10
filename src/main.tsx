@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useRef, createContext } from "react";
-import { createRoot } from "react-dom/client";
+import { render } from "preact";
+import { useEffect, useState, useRef, createContext } from "preact/compat";
 import OBR from "@owlbear-rodeo/sdk";
 import { InitiativeList } from "./components/InitiativeList";
 import { CombatControls } from "./components/CombatControls";
@@ -23,6 +23,8 @@ function App() {
     combatState,
     focusItem,
     updateCount,
+    updateModifier,
+    rollInitiative,
     startCombat,
     nextTurn,
     prevTurn,
@@ -140,18 +142,29 @@ function App() {
     });
   }, [isGM]);
 
-  // Dynamic height
+  // Dynamic height — debounced, only update on significant change
   useEffect(() => {
+    let lastHeight = 0;
+    let timer: ReturnType<typeof setTimeout>;
+
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        const height = Math.min(entry.contentRect.height + 2, 600);
-        OBR.action.setHeight(Math.max(height, 100));
+        const height = Math.min(Math.ceil(entry.contentRect.height) + 2, 600);
+        const clamped = Math.max(height, 100);
+        // Only update if change is > 5px to avoid animation jitter
+        if (Math.abs(clamped - lastHeight) > 5) {
+          clearTimeout(timer);
+          timer = setTimeout(() => {
+            lastHeight = clamped;
+            OBR.action.setHeight(clamped);
+          }, 100);
+        }
       }
     });
 
     const root = document.getElementById("root");
     if (root) observer.observe(root);
-    return () => observer.disconnect();
+    return () => { observer.disconnect(); clearTimeout(timer); };
   }, []);
 
   return (
@@ -167,7 +180,7 @@ function App() {
             <select
               className="lang-select"
               value={lang}
-              onChange={(e) => changeLang(e.target.value as Lang)}
+              onChange={(e) => changeLang((e.target as HTMLSelectElement).value as Lang)}
             >
               <option value="en">EN</option>
               <option value="zh">中文</option>
@@ -185,8 +198,11 @@ function App() {
         <InitiativeList
           items={items}
           inCombat={combatState.inCombat}
+          isGM={isGM}
           onFocus={focusItem}
           onUpdateCount={updateCount}
+          onUpdateModifier={updateModifier}
+          onRoll={rollInitiative}
           lang={lang}
         />
 
@@ -229,5 +245,4 @@ function PluginGate() {
   return <App />;
 }
 
-const root = createRoot(document.getElementById("root")!);
-root.render(<PluginGate />);
+render(<PluginGate />, document.getElementById("root")!);

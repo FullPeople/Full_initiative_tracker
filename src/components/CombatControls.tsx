@@ -1,4 +1,4 @@
-import React from "react";
+
 import { CombatState } from "../types";
 import { Lang, t } from "../utils/i18n";
 

@@ -5,11 +5,11 @@
   "author": "FullPeople",
   "homepage_url": "https://github.com/FullPeople/Full_initiative_tracker",
   "description": "A full-featured initiative tracker with combat effects, camera focus, turn management, and i18n support",
-  "icon": "https://fullpeople.github.io/Full_initiative_tracker/icon.svg",
+  "icon": "/initiative/icon.svg",
   "action": {
     "title": "Initiative Tracker",
-    "icon": "https://fullpeople.github.io/Full_initiative_tracker/icon.svg",
-    "popover": "https://fullpeople.github.io/Full_initiative_tracker/index.html",
+    "icon": "/initiative/icon.svg",
+    "popover": "/initiative/index.html",
     "height": 500,
     "width": 300
   }

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "preact/compat";
 
 interface Props {
   onComplete: () => void;
