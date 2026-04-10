@@ -8,6 +8,10 @@ import "./styles/effects.css";
 function CombatEffectPage() {
   const [show, setShow] = useState(false);
 
+  // Read lang from URL query param
+  const params = new URLSearchParams(window.location.search);
+  const lang = params.get("lang") || "en";
+
   useEffect(() => {
     OBR.onReady(() => setShow(true));
   }, []);
@@ -18,7 +22,7 @@ function CombatEffectPage() {
 
   if (!show) return null;
 
-  return <CombatEffect onComplete={handleComplete} />;
+  return <CombatEffect onComplete={handleComplete} lang={lang} />;
 }
 
 const root = createRoot(document.getElementById("root")!);

@@ -1,7 +1,16 @@
 import React, { useEffect, useState } from "react";
 
-export function CombatEffect({ onComplete }: { onComplete: () => void }) {
+interface Props {
+  onComplete: () => void;
+  lang: string;
+}
+
+export function CombatEffect({ onComplete, lang }: Props) {
   const [phase, setPhase] = useState<"enter" | "show" | "exit">("enter");
+
+  const isZh = lang === "zh";
+  const title = isZh ? "战斗开始" : "COMBAT BEGINS";
+  const subtitle = isZh ? "投掷先攻！" : "Roll for Initiative!";
 
   useEffect(() => {
     const t1 = setTimeout(() => setPhase("show"), 100);
@@ -22,8 +31,8 @@ export function CombatEffect({ onComplete }: { onComplete: () => void }) {
         <div className="swords-container">
           <div className="sword sword-left">⚔</div>
         </div>
-        <div className="combat-text">COMBAT BEGINS</div>
-        <div className="combat-subtext">Roll for Initiative!</div>
+        <div className="combat-text">{title}</div>
+        <div className="combat-subtext">{subtitle}</div>
       </div>
     </div>
   );

@@ -6,9 +6,13 @@ import {
   COMBAT_STATE_KEY,
   BROADCAST_COMBAT_START,
   BROADCAST_COMBAT_END,
+  BROADCAST_FOCUS,
+  BROADCAST_OPEN_PANEL,
+  BROADCAST_CLOSE_PANEL,
   COMBAT_EFFECT_MODAL_ID,
 } from "../utils/constants";
 import { itemToInitiativeItem, getCombatState, setCombatState } from "../utils/metadata";
+import { getStoredLang } from "../utils/i18n";
 
 export function useInitiative() {
   const [allItems, setAllItems] = useState<InitiativeItem[]>([]);
@@ -17,7 +21,6 @@ export function useInitiative() {
     round: 0,
   });
 
-  // Visible items only — hidden items are excluded from display and turn order
   const items = useMemo(
     () => allItems.filter((i) => i.visible),
     [allItems]
@@ -46,20 +49,61 @@ export function useInitiative() {
     const unsubItems = OBR.scene.items.onChange(() => refreshItems());
     const unsubMeta = OBR.scene.onMetadataChange(() => refreshCombat());
 
-    const unsubStart = OBR.broadcast.onMessage(BROADCAST_COMBAT_START, () => {
-      OBR.modal.open({
-        id: COMBAT_EFFECT_MODAL_ID,
-        url: `${import.meta.env.BASE_URL}combat-effect.html`,
-        width: 600,
-        height: 400,
-        fullScreen: true,
-        hidePaper: true,
-      });
-    });
+    // Combat start: show effect + open panel
+    const unsubStart = OBR.broadcast.onMessage(
+      BROADCAST_COMBAT_START,
+      (event) => {
+        const lang = (event.data as any)?.lang || "en";
+        OBR.modal.open({
+          id: COMBAT_EFFECT_MODAL_ID,
+          url: `${import.meta.env.BASE_URL}combat-effect.html?lang=${lang}`,
+          width: 600,
+          height: 400,
+          fullScreen: true,
+          hidePaper: true,
+        });
+      }
+    );
 
+    // Combat end
     const unsubEnd = OBR.broadcast.onMessage(BROADCAST_COMBAT_END, () => {
       refreshCombat();
       refreshItems();
+    });
+
+    // Focus broadcast: all players focus camera on the given item
+    const unsubFocus = OBR.broadcast.onMessage(
+      BROADCAST_FOCUS,
+      async (event) => {
+        const itemId = (event.data as any)?.itemId;
+        if (!itemId) return;
+
+        const targetItems = await OBR.scene.items.getItems([itemId]);
+        if (targetItems.length === 0) return;
+
+        const pos = targetItems[0].position;
+        const vpWidth = await OBR.viewport.getWidth();
+        const vpHeight = await OBR.viewport.getHeight();
+        const currentScale = await OBR.viewport.getScale();
+
+        await OBR.viewport.animateTo({
+          position: {
+            x: -pos.x * currentScale + vpWidth / 2,
+            y: -pos.y * currentScale + vpHeight / 2,
+          },
+          scale: currentScale,
+        });
+      }
+    );
+
+    // Auto open panel
+    const unsubOpenPanel = OBR.broadcast.onMessage(BROADCAST_OPEN_PANEL, () => {
+      OBR.action.open();
+    });
+
+    // Auto close panel
+    const unsubClosePanel = OBR.broadcast.onMessage(BROADCAST_CLOSE_PANEL, () => {
+      OBR.action.close();
     });
 
     return () => {
@@ -67,10 +111,13 @@ export function useInitiative() {
       unsubMeta();
       unsubStart();
       unsubEnd();
+      unsubFocus();
+      unsubOpenPanel();
+      unsubClosePanel();
     };
   }, [refreshItems, refreshCombat]);
 
-  // Focus camera on item with moderate zoom
+  // Focus camera locally (for GM's own view, keeps current scale)
   const focusItem = useCallback(async (itemId: string) => {
     const targetItems = await OBR.scene.items.getItems([itemId]);
     if (targetItems.length === 0) return;
@@ -78,16 +125,23 @@ export function useInitiative() {
     const pos = targetItems[0].position;
     const vpWidth = await OBR.viewport.getWidth();
     const vpHeight = await OBR.viewport.getHeight();
-    const scale = 1;
+    const currentScale = await OBR.viewport.getScale();
 
     await OBR.viewport.animateTo({
       position: {
-        x: -pos.x * scale + vpWidth / 2,
-        y: -pos.y * scale + vpHeight / 2,
+        x: -pos.x * currentScale + vpWidth / 2,
+        y: -pos.y * currentScale + vpHeight / 2,
       },
-      scale,
+      scale: currentScale,
     });
   }, []);
+
+  // Broadcast focus to ALL players (including self)
+  const broadcastFocus = useCallback(async (itemId: string) => {
+    await OBR.broadcast.sendMessage(BROADCAST_FOCUS, { itemId });
+    // Also focus locally (broadcast may not echo to sender)
+    await focusItem(itemId);
+  }, [focusItem]);
 
   const updateCount = useCallback(async (itemId: string, count: number) => {
     await OBR.scene.items.updateItems([itemId], (drafts) => {
@@ -98,7 +152,6 @@ export function useInitiative() {
     });
   }, []);
 
-  // Batch set active — operates on ALL items (including hidden) to keep state correct
   const setActiveItem = useCallback(
     async (activeId: string) => {
       const allIds = allItems.map((i) => i.id);
@@ -123,13 +176,15 @@ export function useInitiative() {
     if (items.length === 0) return;
 
     const firstId = items[0].id;
+    const lang = getStoredLang();
     await setActiveItem(firstId);
     await setCombatState({ inCombat: true, round: 1 });
-    await OBR.broadcast.sendMessage(BROADCAST_COMBAT_START, {});
-    await focusItem(firstId);
-  }, [items, setActiveItem, focusItem]);
+    // Broadcast combat start with lang, open panels, and focus
+    await OBR.broadcast.sendMessage(BROADCAST_COMBAT_START, { lang });
+    await OBR.broadcast.sendMessage(BROADCAST_OPEN_PANEL, {});
+    await broadcastFocus(firstId);
+  }, [items, setActiveItem, broadcastFocus]);
 
-  // Next/prev only navigate among VISIBLE items
   const nextTurn = useCallback(async () => {
     if (items.length === 0) return;
     const currentIndex = items.findIndex((i) => i.active);
@@ -141,8 +196,8 @@ export function useInitiative() {
 
     const nextId = items[nextIndex].id;
     await setActiveItem(nextId);
-    await focusItem(nextId);
-  }, [items, combatState.round, setActiveItem, focusItem]);
+    await broadcastFocus(nextId);
+  }, [items, combatState.round, setActiveItem, broadcastFocus]);
 
   const prevTurn = useCallback(async () => {
     if (items.length === 0) return;
@@ -155,8 +210,8 @@ export function useInitiative() {
 
     const prevId = items[prevIndex].id;
     await setActiveItem(prevId);
-    await focusItem(prevId);
-  }, [items, combatState.round, setActiveItem, focusItem]);
+    await broadcastFocus(prevId);
+  }, [items, combatState.round, setActiveItem, broadcastFocus]);
 
   const endCombat = useCallback(async () => {
     const allIds = allItems.map((i) => i.id);
@@ -172,6 +227,7 @@ export function useInitiative() {
     }
     await setCombatState({ inCombat: false, round: 0 });
     await OBR.broadcast.sendMessage(BROADCAST_COMBAT_END, {});
+    await OBR.broadcast.sendMessage(BROADCAST_CLOSE_PANEL, {});
   }, [allItems]);
 
   return {
