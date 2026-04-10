@@ -26,7 +26,6 @@ export default defineConfig(({ command }) => ({
       input: {
         main: resolve(__dirname, "index.html"),
         combatEffect: resolve(__dirname, "combat-effect.html"),
-        newItemDialog: resolve(__dirname, "new-item-dialog.html"),
       },
     },
   },
