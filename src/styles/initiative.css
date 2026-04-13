@@ -28,6 +28,20 @@ body {
   height: 100vh;
   background: var(--bg-primary);
   color: var(--text-primary);
+  border: 2px solid transparent;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Persistent yellow border during preparation */
+.app-container.state-preparing {
+  border-color: var(--gold);
+  box-shadow: inset 0 0 8px rgba(245, 166, 35, 0.15);
+}
+
+/* Persistent red border during combat — subtle */
+.app-container.state-combat {
+  border-color: rgba(233, 69, 96, 0.4);
+  box-shadow: inset 0 0 4px rgba(233, 69, 96, 0.08);
 }
 
 .loading-state {
@@ -279,18 +293,23 @@ body {
   transition: all 0.15s;
 }
 
-.roll-btn:hover {
+.roll-btn:hover:not(:disabled) {
   background: rgba(233, 69, 96, 0.3);
   border-color: var(--accent);
 }
 
+.roll-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
 .roll-dis { color: #e74c3c; font-weight: 700; }
-.roll-dis:hover { background: rgba(231, 76, 60, 0.3); border-color: #e74c3c; }
+.roll-dis:hover:not(:disabled) { background: rgba(231, 76, 60, 0.3); border-color: #e74c3c; }
 
 .roll-normal { font-size: 14px; }
 
 .roll-adv { color: #2ecc71; font-weight: 700; }
-.roll-adv:hover { background: rgba(46, 204, 113, 0.3); border-color: #2ecc71; }
+.roll-adv:hover:not(:disabled) { background: rgba(46, 204, 113, 0.3); border-color: #2ecc71; }
 
 /* Preparation state: yellow tint for buttons */
 .initiative-item.preparing .roll-btn:hover {
@@ -407,11 +426,17 @@ body {
   cursor: not-allowed;
 }
 
+/* Preparation row: two buttons side by side */
+.prep-controls {
+  display: flex;
+  gap: 6px;
+}
+
 .btn-prepare {
-  width: 100%;
+  flex: 1;
   background: linear-gradient(135deg, #f5a623, #e08e0b);
-  font-size: 14px;
-  padding: 9px;
+  font-size: 13px;
+  padding: 9px 8px;
 }
 
 .btn-prepare:hover:not(:disabled) {
@@ -419,7 +444,35 @@ body {
 }
 
 .btn-prepare .btn-icon {
-  font-size: 16px;
+  font-size: 14px;
+}
+
+.btn-ambush {
+  flex: 0 0 auto;
+  background: linear-gradient(135deg, #e94560, #c0392b);
+  font-size: 13px;
+  padding: 9px 12px;
+}
+
+.btn-ambush:hover:not(:disabled) {
+  box-shadow: 0 3px 10px rgba(233, 69, 96, 0.4);
+}
+
+.btn-ambush .btn-icon {
+  font-size: 14px;
+}
+
+.btn-cancel {
+  flex: 0 0 auto;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: var(--text-secondary);
+  font-size: 13px;
+  padding: 9px 12px;
+}
+
+.btn-cancel:hover {
+  background: rgba(255, 255, 255, 0.15);
 }
 
 .btn-start {

@@ -24,10 +24,12 @@ function App() {
     focusItem,
     updateCount,
     updateModifier,
+    diceRolling,
     rollInitiativeLocal,
     rollInitiativeDicePlus,
     startPreparation,
     startCombat,
+    cancelPreparation,
     nextTurn,
     prevTurn,
     endCombat,
@@ -44,15 +46,13 @@ function App() {
   // Roll handler: GM always local, players use Dice+ during preparation
   const handleRoll = useCallback(async (itemId: string, type: RollType) => {
     if (isGM || combatState.inCombat) {
-      // GM or in-combat: local roll, no Dice+ integration
       await rollInitiativeLocal(itemId, type);
     } else if (combatState.preparing) {
-      // Player during preparation: Dice+ integration
       await rollInitiativeDicePlus(itemId, type);
     }
   }, [isGM, combatState, rollInitiativeLocal, rollInitiativeDicePlus]);
 
-  // Register context menu — re-register when lang changes
+  // Register context menu
   useEffect(() => {
     OBR.contextMenu.create({
       id: `${METADATA_KEY}/context-menu`,
@@ -157,7 +157,7 @@ function App() {
     });
   }, [isGM]);
 
-  // Dynamic height — debounced, only update on significant change
+  // Dynamic height
   useEffect(() => {
     let lastHeight = 0;
     let timer: ReturnType<typeof setTimeout>;
@@ -181,9 +181,16 @@ function App() {
     return () => { observer.disconnect(); clearTimeout(timer); };
   }, []);
 
+  // Determine state class for persistent border
+  const stateClass = combatState.preparing
+    ? "state-preparing"
+    : combatState.inCombat
+    ? "state-combat"
+    : "";
+
   return (
     <LangContext.Provider value={lang}>
-      <div className="app-container">
+      <div className={`app-container ${stateClass}`}>
         <div className="app-header">
           <div className="header-title">
             <span className="icon">⚔</span>
@@ -220,6 +227,7 @@ function App() {
           inCombat={combatState.inCombat}
           preparing={combatState.preparing}
           isGM={isGM}
+          diceRolling={diceRolling}
           onFocus={focusItem}
           onUpdateCount={updateCount}
           onUpdateModifier={updateModifier}
@@ -233,6 +241,7 @@ function App() {
             hasItems={items.length > 0}
             onStartPreparation={startPreparation}
             onStartCombat={startCombat}
+            onCancelPreparation={cancelPreparation}
             onPrevTurn={prevTurn}
             onNextTurn={nextTurn}
             onEndCombat={endCombat}

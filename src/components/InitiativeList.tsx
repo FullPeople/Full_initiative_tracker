@@ -9,6 +9,7 @@ interface Props {
   inCombat: boolean;
   preparing: boolean;
   isGM: boolean;
+  diceRolling: boolean;
   onFocus: (id: string) => void;
   onUpdateCount: (id: string, count: number) => void;
   onUpdateModifier: (id: string, mod: number) => void;
@@ -17,7 +18,7 @@ interface Props {
 }
 
 export function InitiativeList({
-  items, inCombat, preparing, isGM, onFocus, onUpdateCount, onUpdateModifier, onRoll, lang,
+  items, inCombat, preparing, isGM, diceRolling, onFocus, onUpdateCount, onUpdateModifier, onRoll, lang,
 }: Props) {
   if (items.length === 0) {
     return (
@@ -44,6 +45,7 @@ export function InitiativeList({
           inCombat={inCombat}
           preparing={preparing}
           isGM={isGM}
+          diceRolling={diceRolling}
           onFocus={onFocus}
           onUpdateCount={onUpdateCount}
           onUpdateModifier={onUpdateModifier}

@@ -10,7 +10,7 @@ function CombatEffectPage() {
 
   const params = new URLSearchParams(window.location.search);
   const lang = params.get("lang") || "en";
-  const type = (params.get("type") || "combat") as "prepare" | "combat";
+  const type = (params.get("type") || "combat") as "prepare" | "ambush" | "combat";
 
   useEffect(() => {
     OBR.onReady(() => setShow(true));

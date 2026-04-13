@@ -12,6 +12,7 @@ interface Props {
   inCombat: boolean;
   preparing: boolean;
   isGM: boolean;
+  diceRolling: boolean;
   onFocus: (id: string) => void;
   onUpdateCount: (id: string, count: number) => void;
   onUpdateModifier: (id: string, mod: number) => void;
@@ -20,7 +21,7 @@ interface Props {
 
 export function InitiativeItemRow({
   id, name, count, modifier, active, rolled, imageUrl,
-  inCombat, preparing, isGM, onFocus, onUpdateCount, onUpdateModifier, onRoll,
+  inCombat, preparing, isGM, diceRolling, onFocus, onUpdateCount, onUpdateModifier, onRoll,
 }: Props) {
   const [editingCount, setEditingCount] = useState(false);
   const [editingMod, setEditingMod] = useState(false);
@@ -50,6 +51,9 @@ export function InitiativeItemRow({
   const showRollButtons =
     (preparing && (!rolled || isGM)) ||
     (inCombat && isGM);
+
+  // Disable roll buttons when Dice+ is mid-roll (players only, during preparation)
+  const disableRoll = !isGM && preparing && diceRolling;
 
   return (
     <div
@@ -123,6 +127,7 @@ export function InitiativeItemRow({
             <button
               className="roll-btn roll-dis"
               onClick={() => onRoll(id, "disadvantage")}
+              disabled={disableRoll}
               title="2d20kl1 (Disadvantage)"
             >
               劣
@@ -130,6 +135,7 @@ export function InitiativeItemRow({
             <button
               className="roll-btn roll-normal"
               onClick={() => onRoll(id, "normal")}
+              disabled={disableRoll}
               title="1d20"
             >
               🎲
@@ -137,6 +143,7 @@ export function InitiativeItemRow({
             <button
               className="roll-btn roll-adv"
               onClick={() => onRoll(id, "advantage")}
+              disabled={disableRoll}
               title="2d20kh1 (Advantage)"
             >
               优
