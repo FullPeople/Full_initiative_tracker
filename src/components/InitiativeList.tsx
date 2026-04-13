@@ -1,21 +1,23 @@
 
 import { InitiativeItem } from "../types";
 import { InitiativeItemRow } from "./InitiativeItem";
+import { RollType } from "../hooks/useInitiative";
 import { Lang, t } from "../utils/i18n";
 
 interface Props {
   items: InitiativeItem[];
   inCombat: boolean;
+  preparing: boolean;
   isGM: boolean;
   onFocus: (id: string) => void;
   onUpdateCount: (id: string, count: number) => void;
   onUpdateModifier: (id: string, mod: number) => void;
-  onRoll: (id: string) => void;
+  onRoll: (id: string, type: RollType) => void;
   lang: Lang;
 }
 
 export function InitiativeList({
-  items, inCombat, isGM, onFocus, onUpdateCount, onUpdateModifier, onRoll, lang,
+  items, inCombat, preparing, isGM, onFocus, onUpdateCount, onUpdateModifier, onRoll, lang,
 }: Props) {
   if (items.length === 0) {
     return (
@@ -37,8 +39,10 @@ export function InitiativeList({
           count={item.count}
           modifier={item.modifier}
           active={item.active}
+          rolled={item.rolled}
           imageUrl={item.imageUrl}
           inCombat={inCombat}
+          preparing={preparing}
           isGM={isGM}
           onFocus={onFocus}
           onUpdateCount={onUpdateCount}

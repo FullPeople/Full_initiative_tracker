@@ -8,9 +8,17 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .d{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:10px 16px}
 .t{font-size:15px;font-weight:700;margin-bottom:2px}
 .n{font-size:12px;color:#aaa;margin-bottom:10px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-input{width:120px;height:34px;background:#0f3460;border:2px solid rgba(255,255,255,.2);border-radius:8px;color:#f5a623;font-size:20px;font-weight:700;text-align:center;outline:none;margin-bottom:10px}
+input{width:120px;height:34px;background:#0f3460;border:2px solid rgba(255,255,255,.2);border-radius:8px;color:#f5a623;font-size:20px;font-weight:700;text-align:center;outline:none;margin-bottom:8px}
 input:focus{border-color:#f5a623}
 input::-webkit-inner-spin-button,input::-webkit-outer-spin-button{-webkit-appearance:none}
+.roll-row{display:flex;gap:6px;margin-bottom:10px}
+.roll-row button{width:36px;height:28px;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700;transition:all .15s;color:#eee;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15)}
+.roll-row button:hover{background:rgba(255,255,255,.2)}
+.roll-dis{color:#e74c3c!important}
+.roll-dis:hover{border-color:#e74c3c!important;background:rgba(231,76,60,.2)!important}
+.roll-normal{font-size:16px!important}
+.roll-adv{color:#2ecc71!important}
+.roll-adv:hover{border-color:#2ecc71!important;background:rgba(46,204,113,.2)!important}
 .b{display:flex;gap:10px}
 button{padding:7px 20px;border-radius:6px;font-size:13px;cursor:pointer;border:none}
 .s{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#aaa}
@@ -24,6 +32,11 @@ button{padding:7px 20px;border-radius:6px;font-size:13px;cursor:pointer;border:n
   <div class="t" id="title">设置先攻</div>
   <div class="n" id="name"></div>
   <input type="number" id="val" placeholder="先攻值" autofocus>
+  <div class="roll-row">
+    <button class="roll-dis" id="rdis" title="2d20kl1">劣</button>
+    <button class="roll-normal" id="rnorm" title="1d20">🎲</button>
+    <button class="roll-adv" id="radv" title="2d20kh1">优</button>
+  </div>
   <div class="b">
     <button class="s" id="skip">跳过</button>
     <button class="c" id="add">添加</button>
@@ -39,6 +52,7 @@ const lang = p.get("lang") || "zh";
 const isZh = lang === "zh";
 const MODAL_ID = "com.initiative-tracker/new-item-dialog";
 const META_KEY = "com.initiative-tracker/data";
+const MOD_KEY = "com.initiative-tracker/dexMod";
 
 document.getElementById("title").textContent = isZh ? "设置先攻" : "Set Initiative";
 document.getElementById("name").textContent = itemName || (isZh ? "新角色" : "New Character");
@@ -46,9 +60,39 @@ document.getElementById("skip").textContent = isZh ? "跳过" : "Skip";
 document.getElementById("add").textContent = isZh ? "添加" : "Add";
 document.getElementById("val").placeholder = isZh ? "先攻值" : "Initiative";
 
-OBR.onReady(() => {
+function localRoll(mod, type) {
+  const r1 = Math.floor(Math.random() * 20) + 1;
+  const r2 = Math.floor(Math.random() * 20) + 1;
+  let roll;
+  if (type === "dis") roll = Math.min(r1, r2);
+  else if (type === "adv") roll = Math.max(r1, r2);
+  else roll = r1;
+  return roll + mod;
+}
+
+OBR.onReady(async () => {
   const input = document.getElementById("val");
   input.focus();
+
+  // Read modifier from item metadata
+  let mod = 0;
+  try {
+    const items = await OBR.scene.items.getItems([itemId]);
+    if (items.length > 0) {
+      const m = items[0].metadata[MOD_KEY];
+      if (typeof m === "number") mod = m;
+    }
+  } catch {}
+
+  const doRoll = (type) => {
+    const total = localRoll(mod, type);
+    input.value = total;
+    submit();
+  };
+
+  document.getElementById("rdis").onclick = () => doRoll("dis");
+  document.getElementById("rnorm").onclick = () => doRoll("normal");
+  document.getElementById("radv").onclick = () => doRoll("adv");
 
   const submit = async () => {
     const v = parseFloat(input.value);

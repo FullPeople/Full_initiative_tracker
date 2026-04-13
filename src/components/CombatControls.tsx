@@ -5,6 +5,7 @@ import { Lang, t } from "../utils/i18n";
 interface Props {
   combatState: CombatState;
   hasItems: boolean;
+  onStartPreparation: () => void;
   onStartCombat: () => void;
   onPrevTurn: () => void;
   onNextTurn: () => void;
@@ -15,20 +16,37 @@ interface Props {
 export function CombatControls({
   combatState,
   hasItems,
+  onStartPreparation,
   onStartCombat,
   onPrevTurn,
   onNextTurn,
   onEndCombat,
   lang,
 }: Props) {
-  if (!combatState.inCombat) {
+  // Idle: show "Start Preparation" button (yellow)
+  if (!combatState.inCombat && !combatState.preparing) {
+    return (
+      <div className="combat-controls">
+        <button
+          className="btn btn-prepare"
+          onClick={onStartPreparation}
+          disabled={!hasItems}
+          title={!hasItems ? t(lang, "addFirst") : ""}
+        >
+          <span className="btn-icon">⚔</span> {t(lang, "startPreparation")}
+        </button>
+      </div>
+    );
+  }
+
+  // Preparing: show "Start Combat" button (red)
+  if (combatState.preparing) {
     return (
       <div className="combat-controls">
         <button
           className="btn btn-start"
           onClick={onStartCombat}
           disabled={!hasItems}
-          title={!hasItems ? t(lang, "addFirst") : ""}
         >
           <span className="btn-icon">⚔</span> {t(lang, "startCombat")}
         </button>
@@ -36,6 +54,7 @@ export function CombatControls({
     );
   }
 
+  // In Combat: prev/next + end
   return (
     <div className="combat-controls">
       <div className="turn-controls">

@@ -3,13 +3,18 @@ import { useEffect, useState } from "preact/compat";
 interface Props {
   onComplete: () => void;
   lang: string;
+  type: "prepare" | "combat";
 }
 
-export function CombatEffect({ onComplete, lang }: Props) {
+export function CombatEffect({ onComplete, lang, type }: Props) {
   const [phase, setPhase] = useState<"enter" | "show" | "exit">("enter");
 
   const isZh = lang === "zh";
-  const title = isZh ? "战斗开始" : "COMBAT BEGINS";
+  const isPrepare = type === "prepare";
+
+  const title = isZh
+    ? (isPrepare ? "战斗准备" : "战斗开始")
+    : (isPrepare ? "PREPARE FOR COMBAT" : "COMBAT BEGINS");
   const subtitle = isZh ? "投掷先攻！" : "Roll for Initiative!";
 
   useEffect(() => {
@@ -24,7 +29,7 @@ export function CombatEffect({ onComplete, lang }: Props) {
   }, [onComplete]);
 
   return (
-    <div className={`combat-effect-overlay phase-${phase}`}>
+    <div className={`combat-effect-overlay phase-${phase} effect-${type}`}>
       <div className="effect-flash" />
       <div className="effect-vignette" />
       <div className="effect-content">

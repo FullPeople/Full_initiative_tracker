@@ -34,6 +34,11 @@
   background: radial-gradient(ellipse at center, transparent 40%, rgba(233, 69, 96, 0.6) 100%);
 }
 
+/* Yellow preparation variant */
+.effect-prepare .effect-vignette {
+  background: radial-gradient(ellipse at center, transparent 40%, rgba(245, 166, 35, 0.6) 100%);
+}
+
 .phase-show .effect-vignette {
   animation: vignetteIn 0.5s ease-out forwards;
 }
@@ -79,13 +84,26 @@
   filter: drop-shadow(0 0 20px rgba(233, 69, 96, 0.8));
 }
 
+.effect-prepare .sword {
+  filter: drop-shadow(0 0 20px rgba(245, 166, 35, 0.8));
+}
+
 .phase-show .sword {
   animation: swordPulse 1.5s ease-in-out infinite;
+}
+
+.effect-prepare.phase-show .sword {
+  animation: swordPulseGold 1.5s ease-in-out infinite;
 }
 
 @keyframes swordPulse {
   0%, 100% { filter: drop-shadow(0 0 20px rgba(233, 69, 96, 0.8)); }
   50% { filter: drop-shadow(0 0 40px rgba(233, 69, 96, 1)); }
+}
+
+@keyframes swordPulseGold {
+  0%, 100% { filter: drop-shadow(0 0 20px rgba(245, 166, 35, 0.8)); }
+  50% { filter: drop-shadow(0 0 40px rgba(245, 166, 35, 1)); }
 }
 
 .combat-text {
@@ -100,6 +118,13 @@
   text-transform: uppercase;
 }
 
+.effect-prepare .combat-text {
+  text-shadow:
+    0 0 20px rgba(245, 166, 35, 0.8),
+    0 0 60px rgba(245, 166, 35, 0.4),
+    0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
 .combat-subtext {
   font-size: 18px;
   color: rgba(255, 255, 255, 0.7);
@@ -107,6 +132,10 @@
   font-weight: 400;
   letter-spacing: 2px;
   text-shadow: 0 0 10px rgba(233, 69, 96, 0.5);
+}
+
+.effect-prepare .combat-subtext {
+  text-shadow: 0 0 10px rgba(245, 166, 35, 0.5);
 }
 
 /* ===== New Item Dialog ===== */

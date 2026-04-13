@@ -30,6 +30,7 @@ export function itemToInitiativeItem(item: Item): InitiativeItem | null {
     count: data.count,
     modifier: mod,
     active: data.active,
+    rolled: !!data.rolled,
     visible: item.visible,
     imageUrl: getImageUrl(item),
   };
@@ -61,7 +62,7 @@ export async function getCombatState(): Promise<CombatState> {
   if (state && typeof state === "object") {
     return state as CombatState;
   }
-  return { inCombat: false, round: 0 };
+  return { inCombat: false, preparing: false, round: 0 };
 }
 
 export async function setCombatState(state: Partial<CombatState>) {

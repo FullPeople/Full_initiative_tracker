@@ -111,6 +111,11 @@ body {
   white-space: nowrap;
 }
 
+.round-badge.preparing {
+  background: var(--gold);
+  color: #1a1a2e;
+}
+
 /* ===== Initiative List ===== */
 .initiative-list {
   flex: 1;
@@ -118,33 +123,47 @@ body {
   padding: 6px 6px 6px 2px;
 }
 
-/* ===== Initiative Item — image as full background ===== */
+/* ===== Initiative Item — slot style ===== */
 .initiative-item {
   position: relative;
   display: flex;
   align-items: center;
-  height: 52px;
-  margin-bottom: 4px;
+  height: 48px;
+  width: 80%;
+  margin-bottom: 2px;
   margin-left: 0;
-  border-radius: 8px;
+  margin-right: auto;
+  border-radius: 0;
   overflow: hidden;
   cursor: pointer;
-  transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-              box-shadow 0.3s ease;
-  border: 2px solid transparent;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-left: 3px solid transparent;
+  /* Slide animation */
+  transition: margin-left 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+              margin-right 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.2s ease;
+  /* Enter animation */
+  animation: slideIn 0.3s ease-out;
 }
 
-/* Active item: slide right like a "selected slot" */
+@keyframes slideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* Active item: slide to right edge */
 .initiative-item.active {
-  margin-left: 16px;
-  border-color: var(--accent);
-  box-shadow: 0 0 10px var(--accent-glow);
+  margin-left: auto;
+  margin-right: 0;
+  border-left-color: var(--accent);
+  border-right: 3px solid var(--accent);
+  background: rgba(233, 69, 96, 0.08);
 }
 
-/* Image background layer */
+/* Image background — inset 10px to crop circular border */
 .item-bg {
   position: absolute;
-  inset: 0;
+  inset: -20px;
   z-index: 0;
 }
 
@@ -152,8 +171,7 @@ body {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  /* Center on the middle of the image (faces are usually top-center for tokens) */
-  object-position: center center;
+  object-position: center 25%;
 }
 
 .item-bg-placeholder {
@@ -168,13 +186,13 @@ body {
   background: var(--bg-card);
 }
 
-/* Gradient overlay for text readability */
+/* Gradient overlay */
 .item-bg-overlay {
   position: absolute;
   inset: 0;
   background: linear-gradient(
     90deg,
-    rgba(0, 0, 0, 0.1) 0%,
+    rgba(0, 0, 0, 0.05) 0%,
     rgba(0, 0, 0, 0.4) 50%,
     rgba(0, 0, 0, 0.7) 100%
   );
@@ -183,26 +201,15 @@ body {
 .initiative-item.active .item-bg-overlay {
   background: linear-gradient(
     90deg,
-    rgba(233, 69, 96, 0.1) 0%,
+    rgba(233, 69, 96, 0.08) 0%,
     rgba(0, 0, 0, 0.35) 50%,
-    rgba(0, 0, 0, 0.65) 100%
+    rgba(0, 0, 0, 0.6) 100%
   );
 }
 
-/* Name overlaid on the image */
-.item-name-overlay {
-  position: relative;
-  z-index: 1;
-  flex: 1;
-  padding: 0 10px;
-  font-weight: 600;
-  font-size: 13px;
-  color: white;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+/* No name displayed — spacer pushes controls to right */
+.item-name-overlay { display: none; }
+.item-spacer { flex: 1; position: relative; z-index: 1; }
 
 /* Controls container */
 .item-controls {
@@ -251,23 +258,44 @@ body {
 .mod-input::-webkit-inner-spin-button,
 .mod-input::-webkit-outer-spin-button { -webkit-appearance: none; }
 
-/* Roll button */
+/* Roll buttons group */
+.roll-buttons {
+  display: flex;
+  gap: 2px;
+}
+
 .roll-btn {
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
   border: none;
   border-radius: 4px;
   background: rgba(0, 0, 0, 0.4);
   cursor: pointer;
-  font-size: 14px;
+  font-size: 11px;
   line-height: 1;
   padding: 0;
   border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #eee;
+  transition: all 0.15s;
 }
 
 .roll-btn:hover {
   background: rgba(233, 69, 96, 0.3);
   border-color: var(--accent);
+}
+
+.roll-dis { color: #e74c3c; font-weight: 700; }
+.roll-dis:hover { background: rgba(231, 76, 60, 0.3); border-color: #e74c3c; }
+
+.roll-normal { font-size: 14px; }
+
+.roll-adv { color: #2ecc71; font-weight: 700; }
+.roll-adv:hover { background: rgba(46, 204, 113, 0.3); border-color: #2ecc71; }
+
+/* Preparation state: yellow tint for buttons */
+.initiative-item.preparing .roll-btn:hover {
+  background: rgba(245, 166, 35, 0.3);
+  border-color: var(--gold);
 }
 
 /* Count badge */
@@ -377,6 +405,21 @@ body {
 .btn:disabled {
   opacity: 0.35;
   cursor: not-allowed;
+}
+
+.btn-prepare {
+  width: 100%;
+  background: linear-gradient(135deg, #f5a623, #e08e0b);
+  font-size: 14px;
+  padding: 9px;
+}
+
+.btn-prepare:hover:not(:disabled) {
+  box-shadow: 0 3px 10px rgba(245, 166, 35, 0.4);
+}
+
+.btn-prepare .btn-icon {
+  font-size: 16px;
 }
 
 .btn-start {

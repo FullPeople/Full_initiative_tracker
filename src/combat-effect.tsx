@@ -10,6 +10,7 @@ function CombatEffectPage() {
 
   const params = new URLSearchParams(window.location.search);
   const lang = params.get("lang") || "en";
+  const type = (params.get("type") || "combat") as "prepare" | "combat";
 
   useEffect(() => {
     OBR.onReady(() => setShow(true));
@@ -21,7 +22,7 @@ function CombatEffectPage() {
 
   if (!show) return null;
 
-  return <CombatEffect onComplete={handleComplete} lang={lang} />;
+  return <CombatEffect onComplete={handleComplete} lang={lang} type={type} />;
 }
 
 render(<CombatEffectPage />, document.getElementById("root")!);

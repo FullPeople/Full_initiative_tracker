@@ -1,9 +1,9 @@
 import { render } from "preact";
-import { useEffect, useState, useRef, createContext } from "preact/compat";
+import { useEffect, useState, useRef, useCallback, createContext } from "preact/compat";
 import OBR from "@owlbear-rodeo/sdk";
 import { InitiativeList } from "./components/InitiativeList";
 import { CombatControls } from "./components/CombatControls";
-import { useInitiative } from "./hooks/useInitiative";
+import { useInitiative, RollType } from "./hooks/useInitiative";
 import { usePlayerRole } from "./hooks/usePlayerRole";
 import {
   METADATA_KEY,
@@ -24,7 +24,9 @@ function App() {
     focusItem,
     updateCount,
     updateModifier,
-    rollInitiative,
+    rollInitiativeLocal,
+    rollInitiativeDicePlus,
+    startPreparation,
     startCombat,
     nextTurn,
     prevTurn,
@@ -38,6 +40,17 @@ function App() {
     setLang(newLang);
     setStoredLang(newLang);
   };
+
+  // Roll handler: GM always local, players use Dice+ during preparation
+  const handleRoll = useCallback(async (itemId: string, type: RollType) => {
+    if (isGM || combatState.inCombat) {
+      // GM or in-combat: local roll, no Dice+ integration
+      await rollInitiativeLocal(itemId, type);
+    } else if (combatState.preparing) {
+      // Player during preparation: Dice+ integration
+      await rollInitiativeDicePlus(itemId, type);
+    }
+  }, [isGM, combatState, rollInitiativeLocal, rollInitiativeDicePlus]);
 
   // Register context menu — re-register when lang changes
   useEffect(() => {
@@ -83,7 +96,7 @@ function App() {
         } else {
           await OBR.scene.items.updateItems(ids, (drafts) => {
             for (const d of drafts) {
-              d.metadata[METADATA_KEY] = { count: 0, active: false };
+              d.metadata[METADATA_KEY] = { count: 0, active: false, rolled: false };
             }
           });
           OBR.notification.show(t(lang, "added"));
@@ -92,7 +105,7 @@ function App() {
     });
   }, [lang]);
 
-  // Track new items during combat (GM only)
+  // Track new items during combat or preparation (GM only)
   useEffect(() => {
     if (!isGM) return;
 
@@ -109,7 +122,7 @@ function App() {
     return OBR.scene.items.onChange(async (sceneItems) => {
       const metadata = await OBR.scene.getMetadata();
       const combat = metadata[COMBAT_STATE_KEY] as
-        | { inCombat: boolean }
+        | { inCombat: boolean; preparing: boolean }
         | undefined;
 
       const characterItems = sceneItems.filter(
@@ -118,7 +131,9 @@ function App() {
           (i.layer === "CHARACTER" || i.layer === "MOUNT")
       );
 
-      if (!combat?.inCombat) {
+      const isActive = combat?.inCombat || combat?.preparing;
+
+      if (!isActive) {
         knownItemIds.current = new Set(characterItems.map((i) => i.id));
         return;
       }
@@ -133,7 +148,7 @@ function App() {
             id: NEW_ITEM_DIALOG_ID,
             url: `${import.meta.env.BASE_URL}new-item-dialog.html?itemId=${item.id}&itemName=${encodeURIComponent(item.name)}&lang=${getStoredLang()}`,
             width: 300,
-            height: 200,
+            height: 240,
           });
         }
       }
@@ -151,7 +166,6 @@ function App() {
       for (const entry of entries) {
         const height = Math.min(Math.ceil(entry.contentRect.height) + 2, 600);
         const clamped = Math.max(height, 100);
-        // Only update if change is > 5px to avoid animation jitter
         if (Math.abs(clamped - lastHeight) > 5) {
           clearTimeout(timer);
           timer = setTimeout(() => {
@@ -188,6 +202,12 @@ function App() {
             <span className="hint-icon" title={t(lang, "dragHint")}>?</span>
           </div>
 
+          {combatState.preparing && (
+            <span className="round-badge preparing">
+              {t(lang, "preparing")}
+            </span>
+          )}
+
           {combatState.inCombat && (
             <span className="round-badge">
               {t(lang, "round")} {combatState.round}
@@ -198,11 +218,12 @@ function App() {
         <InitiativeList
           items={items}
           inCombat={combatState.inCombat}
+          preparing={combatState.preparing}
           isGM={isGM}
           onFocus={focusItem}
           onUpdateCount={updateCount}
           onUpdateModifier={updateModifier}
-          onRoll={rollInitiative}
+          onRoll={handleRoll}
           lang={lang}
         />
 
@@ -210,6 +231,7 @@ function App() {
           <CombatControls
             combatState={combatState}
             hasItems={items.length > 0}
+            onStartPreparation={startPreparation}
             onStartCombat={startCombat}
             onPrevTurn={prevTurn}
             onNextTurn={nextTurn}
