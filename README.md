@@ -60,7 +60,15 @@ You may need to enable `chrome://flags/#allow-insecure-localhost` first.
 
 ### License
 
-MIT
+[PolyForm Noncommercial License 1.0.0](./LICENSE) — see the LICENSE file for the full text.
+
+**Quick summary** (informal, see LICENSE for legally-binding terms):
+
+- ✅ Free to view, modify, fork, and redistribute for **noncommercial** purposes
+- ✅ Must keep the `Required Notice: Copyright (c) 2026 FullPeople` line in any redistribution
+- ❌ **Commercial use prohibited** — selling the code, paid hosting, for-profit products, paid integrations, etc. are NOT allowed
+- ✅ Individual TRPG players, hobby projects, schools, research, charity use — all allowed
+- ✅ Noncommercial derivatives may be closed-source and redistributed
 
 ---
 
@@ -120,4 +128,12 @@ npm run build
 
 ### 许可证
 
-MIT
+[PolyForm Noncommercial License 1.0.0](./LICENSE) —— 详见 LICENSE 文件。
+
+**通俗说明**（仅供理解，以 LICENSE 全文为准）：
+
+- ✅ **可以**：自由查看、修改、二次创作、非商用分发
+- ✅ **必须**：保留 `Required Notice: Copyright (c) 2026 FullPeople` 这一行（标明出处）
+- ❌ **不允许**：任何商业用途 —— 包括但不限于售卖代码 / 售卖部署服务 / 用于盈利产品 / 嵌入收费应用
+- ✅ 个人玩家、TRPG 团队自用、爱好者改造、学校研究、公益用途 **均允许**
+- ✅ 非商用衍生品 **可以闭源**、可以重新分发（只要不卖钱）
