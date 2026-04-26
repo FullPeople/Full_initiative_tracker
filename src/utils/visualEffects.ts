@@ -6,8 +6,8 @@ import OBR, { buildImage } from "@owlbear-rodeo/sdk";
 // round-trips per focus change, the root cause of the lag on hover / next-turn).
 
 const RING_SIZE = 200;
-const ACTIVE_URL = "https://obr.dnd.center/initiative/ring-active.svg?v=2";
-const HOVER_URL = "https://obr.dnd.center/initiative/ring-hover.svg?v=2";
+const ACTIVE_URL = "https://obr.dnd.center/initiative/ring-active.svg?v=3";
+const HOVER_URL = "https://obr.dnd.center/initiative/ring-hover.svg?v=3";
 
 const TAG_ACTIVE = "com.initiative-tracker/ring-active";
 const TAG_HOVER = "com.initiative-tracker/ring-hover";

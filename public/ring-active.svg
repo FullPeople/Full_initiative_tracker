@@ -1,13 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
-  <!-- Outer dashed ring -->
-  <circle cx="100" cy="100" r="92" fill="none" stroke="rgba(233,69,96,0.85)" stroke-width="4" stroke-dasharray="16 10"/>
-  <!-- Inner thin ring -->
-  <circle cx="100" cy="100" r="78" fill="none" stroke="rgba(233,69,96,0.35)" stroke-width="2"/>
-  <!-- Corner markers for rotation visibility -->
-  <g fill="rgba(233,69,96,0.9)">
-    <path d="M100 4 L94 20 L106 20 Z"/>
-    <path d="M100 196 L94 180 L106 180 Z"/>
-    <path d="M4 100 L20 94 L20 106 Z"/>
-    <path d="M196 100 L180 94 L180 106 Z"/>
-  </g>
+  <!-- Geometry mirrors ring-hover.svg so blue/red rings have identical
+       visible diameter. Rotation is read from the dashed pattern. -->
+  <circle cx="100" cy="100" r="92" fill="none" stroke="rgba(233,69,96,0.9)" stroke-width="5" stroke-dasharray="16 10"/>
+  <circle cx="100" cy="100" r="82" fill="none" stroke="rgba(233,69,96,0.4)" stroke-width="2"/>
 </svg>

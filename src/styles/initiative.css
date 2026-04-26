@@ -48,18 +48,13 @@ html, body, #root { height: 100%; background: transparent; }
 
 .hbar-row-items {
   /* Fits: base card 80 OR active card 100 + 3px gap + 18px roll-button strip
-     + 1px breathing room. Row stretches children so the list reaches this
-     height and the below-card buttons aren't clipped by list overflow. */
-  min-height: 122px;
+     + 22px extra so the horizontal scrollbar that appears when many entries
+     overflow doesn't clip the below-card buttons. Row stretches children so
+     the list reaches this height and the buttons aren't hidden by list
+     overflow. */
+  min-height: 144px;
   align-items: stretch;
   justify-content: center;
-}
-
-/* When dice buttons are hidden (player without Dice+), drop the reserved
-   22px below-card area. Combined with a shorter popover height, this means
-   the iframe blocks less mouse area on the map. */
-.app-hbar.no-dice .hbar-row-items {
-  min-height: 100px;
 }
 
 .hbar-row-controls {

@@ -471,7 +471,9 @@ export function useInitiative() {
 
   const rollInitiativeDicePlus = useCallback(async (itemId: string, type: RollType) => {
     const item = allItemsRef.current.find((i) => i.id === itemId);
-    if (!item || item.rolled || diceRollingRef.current) return;
+    // Allow re-rolls during preparing — only block while a roll is mid-flight
+    // (Dice+ result hasn't come back yet) so we don't fire concurrent rolls.
+    if (!item || diceRollingRef.current) return;
 
     const notation = diceNotation(type);
 

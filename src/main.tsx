@@ -18,10 +18,11 @@ const POPOVER_ID = "com.initiative-tracker/panel";
 const COLLAPSED_WIDTH = 120;
 const COLLAPSED_HEIGHT = 40;
 const EXPANDED_WIDTH = 720;
-const EXPANDED_HEIGHT = 162;
-// Same panel without the 22px reserved for below-card dice buttons. Used
-// when the user has no way to roll dice (player without Dice+).
-const EXPANDED_HEIGHT_NO_DICE = 140;
+// 162 + 22px (one roll-button row + breathing room) so the horizontal
+// scrollbar that appears with many initiative entries doesn't clip the
+// below-card buttons. Same height for everyone — owner-players also need
+// this room for roll/end-turn buttons during preparing/their active turn.
+const EXPANDED_HEIGHT = 184;
 
 export const LangContext = createContext<Lang>("zh");
 
@@ -67,9 +68,9 @@ function App() {
     OBR.popover.setHeight(POPOVER_ID, h).catch(() => {});
   }, []);
 
-  // Whether dice buttons can ever appear in this client. GM always rolls
-  // locally; players need Dice+. While probing (null) we show buttons,
-  // settling to false hides them.
+  // GM always rolls locally; players use Dice+ when installed and fall back
+  // to a local roll otherwise. Buttons are now always shown for owner-players
+  // during preparing — `canShowDice` is only consulted for GM combat rolls.
   const canShowDice = isGM || dicePlusAvailable !== false;
 
   const setPanelExpanded = useCallback((next: boolean) => {
@@ -84,21 +85,11 @@ function App() {
     setTransitioning(true);
     setExpanded(next);
     const w = next ? EXPANDED_WIDTH : COLLAPSED_WIDTH;
-    const h = next
-      ? (canShowDice ? EXPANDED_HEIGHT : EXPANDED_HEIGHT_NO_DICE)
-      : COLLAPSED_HEIGHT;
+    const h = next ? EXPANDED_HEIGHT : COLLAPSED_HEIGHT;
     OBR.popover.setWidth(POPOVER_ID, w).catch(() => {});
     OBR.popover.setHeight(POPOVER_ID, h).catch(() => {});
     setTimeout(() => setTransitioning(false), 260);
-  }, [canShowDice]);
-
-  // When dice availability changes (probe finishes / player gains Dice+),
-  // resize the open popover to match. Skip if collapsed.
-  useEffect(() => {
-    if (!expanded) return;
-    const h = canShowDice ? EXPANDED_HEIGHT : EXPANDED_HEIGHT_NO_DICE;
-    OBR.popover.setHeight(POPOVER_ID, h).catch(() => {});
-  }, [canShowDice, expanded]);
+  }, []);
 
   const toggleExpanded = useCallback(() => {
     setPanelExpanded(!expanded);
@@ -159,9 +150,16 @@ function App() {
     if (isGM || combatState.inCombat) {
       await rollInitiativeLocal(itemId, type);
     } else if (combatState.preparing) {
-      await rollInitiativeDicePlus(itemId, type);
+      // Owner-player during prep: use Dice+ when available so everyone sees
+      // the roll, otherwise fall back to a silent local roll so the click
+      // still does something on clients that don't have Dice+ installed.
+      if (dicePlusAvailable === false) {
+        await rollInitiativeLocal(itemId, type);
+      } else {
+        await rollInitiativeDicePlus(itemId, type);
+      }
     }
-  }, [isGM, combatState, rollInitiativeLocal, rollInitiativeDicePlus]);
+  }, [isGM, combatState, dicePlusAvailable, rollInitiativeLocal, rollInitiativeDicePlus]);
 
   const handleClick = useCallback(async (itemId: string) => {
     focusItem(itemId);

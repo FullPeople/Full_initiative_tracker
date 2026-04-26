@@ -29,6 +29,11 @@ a:hover{color:#5dade2;text-decoration:underline}
 hr{border:none;border-top:1px solid rgba(255,255,255,0.08);margin:14px 0}
 .foot{text-align:center;font-size:10px;color:#555;margin-top:18px;padding-bottom:8px}
 .note{font-size:11px;color:#999;background:rgba(255,255,255,0.03);border:1px dashed rgba(255,255,255,0.1);padding:10px 12px;border-radius:6px;margin-top:10px;line-height:1.7}
+.step{margin:10px 0 14px;padding:10px 12px;background:rgba(255,255,255,0.03);border-radius:6px;border-left:3px solid #5dade2}
+.step-title{font-size:12px;font-weight:700;color:#5dade2;margin-bottom:6px}
+.step p{margin-bottom:6px;font-size:12px;color:#ccc}
+.step img{display:block;max-width:100%;height:auto;border-radius:4px;margin:6px auto;box-shadow:0 2px 6px rgba(0,0,0,0.4);background:#0f3460}
+.tip{font-size:11.5px;color:#bbb;background:rgba(46,204,113,0.08);border-left:3px solid #2ecc71;padding:8px 10px;margin-top:8px;border-radius:0 4px 4px 0;line-height:1.65}
 </style>
 </head>
 <body>
@@ -48,6 +53,37 @@ hr{border:none;border-top:1px solid rgba(255,255,255,0.08);margin:14px 0}
     <li><span class="tag">隐身</span><div class="li-body">角色被隐藏时自动从先攻列表跳过</div></li>
     <li><span class="tag">战斗中</span><div class="li-body">拖拽新角色到场景会提示设置先攻</div></li>
   </ul>
+
+  <hr>
+
+  <h2>👤 如何为玩家设置 Owner</h2>
+  <p>在 OBR 中把角色卡的 Owner 指派给玩家后，<b>玩家端就能在先攻插件里：</b></p>
+  <ul style="margin-bottom:8px">
+    <li><span class="tag">投骰</span><div class="li-body">在准备阶段为<b>自己拥有的角色</b>投先攻骰</div></li>
+    <li><span class="tag">改值</span><div class="li-body">编辑自己角色的<b>先攻值</b>和<b>加值</b></div></li>
+    <li><span class="tag">回合</span><div class="li-body">轮到自己时，点角色卡下方<b>绿色「结束回合」</b>按钮</div></li>
+  </ul>
+  <p style="font-size:11.5px;color:#aaa;margin-bottom:10px">不设置也能玩，由 DM 一手操作即可。但开放后玩家可以更自主地推进自己的回合。</p>
+
+  <div class="step">
+    <div class="step-title">第 1 步：开启 Character「Owner Only」权限</div>
+    <p>左侧 Players 面板中，点 <b>盾牌图标</b>（Player Permissions）。</p>
+    <img src="owner-step1.png" alt="Players 面板的盾牌按钮">
+    <p>展开 Map → <b>Character</b> 行，在下拉里勾上 <b>Owner Only</b>，然后 SAVE。</p>
+    <img src="owner-step2.png" alt="勾选 Owner Only">
+    <p style="font-size:11.5px;color:#aaa">含义：被指派为某角色 Owner 的玩家，才能修改/操作那个角色（DM 仍可操作所有角色）。</p>
+  </div>
+
+  <div class="step">
+    <div class="step-title">第 2 步：把角色 Owner 指派给玩家</div>
+    <p>在地图上<b>左键点选</b>一个角色 Token，悬浮工具栏里点 <b>人形图标</b>（Set Owner），从列表里选玩家即可。</p>
+    <img src="owner-step3.png" alt="角色工具栏的 Set Owner 按钮">
+    <p style="font-size:11.5px;color:#aaa">每个 Token 单独指派；一个玩家可以拥有多个角色（PC + 召唤物等）。</p>
+  </div>
+
+  <div class="tip">
+    <b>提示：</b>设置完成后，在先攻面板里那位玩家的角色卡<b>加值/先攻值</b>会变成可点编辑（蓝色描边），战斗中轮到他时会出现<b>绿色「结束回合」</b>按钮。其他人的卡对他来说是只读的。
+  </div>
 
   <hr>
 

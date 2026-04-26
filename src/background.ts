@@ -20,7 +20,7 @@ const ICON_URL = `${BASE}icon.svg`;
 const COLLAPSED_WIDTH = 120;
 const COLLAPSED_HEIGHT = 40;
 const EXPANDED_WIDTH = 720;
-const EXPANDED_HEIGHT = 162;
+const EXPANDED_HEIGHT = 184;
 const TOP_OFFSET = 40;
 
 async function openPanel(expanded: boolean) {

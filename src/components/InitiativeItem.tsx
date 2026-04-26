@@ -65,10 +65,15 @@ export function InitiativeItemRow({
   const isActive = active && inCombat;
   const modStr = modifier >= 0 ? `+${modifier}` : `${modifier}`;
 
+  // Preparing: GM and owner-players can roll any number of times — visible
+  // regardless of Dice+ availability (we fall back to a local roll if Dice+
+  // isn't installed). Combat: GM only, since player rolls during combat
+  // would race with active-turn writes.
+  // `canShowDice` only suppresses GM-side combat rolls when there's no way
+  // to roll on this client (currently always true for GM, but kept for
+  // future-proofing).
   const showRollButtons =
-    canShowDice &&
-    ((preparing && canEdit && (!rolled || isGM)) ||
-      (inCombat && isGM));
+    (preparing && canEdit) || (inCombat && isGM && canShowDice);
 
   const disableRoll = !isGM && preparing && diceRolling;
 

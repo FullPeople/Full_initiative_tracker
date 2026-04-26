@@ -137,3 +137,13 @@ npm run build
 - ❌ **不允许**：任何商业用途 —— 包括但不限于售卖代码 / 售卖部署服务 / 用于盈利产品 / 嵌入收费应用
 - ✅ 个人玩家、TRPG 团队自用、爱好者改造、学校研究、公益用途 **均允许**
 - ✅ 非商用衍生品 **可以闭源**、可以重新分发（只要不卖钱）
+
+---
+
+## 💖 支持作者
+
+如果这些插件对你的跑团有帮助，欢迎来爱发电支持一下作者 —— 用于服务器续费和新插件开发 ♥
+
+[![前往爱发电](https://img.shields.io/badge/%E7%88%B1%E5%8F%91%E7%94%B5-FullPeople-FF6B9D?style=for-the-badge&logo=heart&logoColor=white)](https://ifdian.net/a/fullpeople)
+
+> 反馈或建议：[1763086701@qq.com](mailto:1763086701@qq.com)
