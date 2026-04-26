@@ -1,5 +1,6 @@
-import { useState, useRef } from "preact/compat";
+import { useState, useRef, useEffect } from "preact/compat";
 import { RollType } from "../hooks/useInitiative";
+import { D20Icon, D20AdvIcon, D20DisIcon } from "./DiceIcons";
 
 interface Props {
   id: string;
@@ -12,16 +13,25 @@ interface Props {
   inCombat: boolean;
   preparing: boolean;
   isGM: boolean;
+  canEdit: boolean;
   diceRolling: boolean;
   onFocus: (id: string) => void;
+  onHover?: (id: string | null) => void;
   onUpdateCount: (id: string, count: number) => void;
   onUpdateModifier: (id: string, mod: number) => void;
   onRoll: (id: string, type: RollType) => void;
+  onEndTurn?: () => void;
+  endTurnLabel?: string;
 }
 
+// Portrait card for the horizontal top-center strip. Image fills the top
+// ~80% (top-aligned, cropped), count + modifier tile at the bottom.
+// Active item bulges downward (taller). Roll buttons float below the card
+// when applicable.
 export function InitiativeItemRow({
   id, name, count, modifier, active, rolled, imageUrl,
-  inCombat, preparing, isGM, diceRolling, onFocus, onUpdateCount, onUpdateModifier, onRoll,
+  inCombat, preparing, isGM, canEdit, diceRolling, onFocus, onHover,
+  onUpdateCount, onUpdateModifier, onRoll, onEndTurn, endTurnLabel,
 }: Props) {
   const [editingCount, setEditingCount] = useState(false);
   const [editingMod, setEditingMod] = useState(false);
@@ -29,6 +39,14 @@ export function InitiativeItemRow({
   const [modVal, setModVal] = useState(String(modifier));
   const countRef = useRef<HTMLInputElement>(null);
   const modRef = useRef<HTMLInputElement>(null);
+  const rowRef = useRef<HTMLDivElement>(null);
+
+  // Scroll active item into view horizontally when it becomes active
+  useEffect(() => {
+    if (active && inCombat && rowRef.current) {
+      rowRef.current.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
+    }
+  }, [active, inCombat]);
 
   const commitCount = () => {
     setEditingCount(false);
@@ -45,112 +63,127 @@ export function InitiativeItemRow({
   const isActive = active && inCombat;
   const modStr = modifier >= 0 ? `+${modifier}` : `${modifier}`;
 
-  // Show roll buttons?
-  // Preparing: all players see buttons, hide if rolled (unless GM)
-  // In Combat: GM only, always visible
   const showRollButtons =
-    (preparing && (!rolled || isGM)) ||
+    (preparing && canEdit && (!rolled || isGM)) ||
     (inCombat && isGM);
 
-  // Disable roll buttons when Dice+ is mid-roll (players only, during preparation)
   const disableRoll = !isGM && preparing && diceRolling;
+
+  // Show "End Turn" button to the active non-GM owner so they can advance
+  // their own turn without waiting on the GM.
+  const showEndTurn =
+    !!onEndTurn && isActive && !isGM && canEdit;
 
   return (
     <div
+      ref={rowRef}
       className={`initiative-item ${isActive ? "active" : ""} ${preparing ? "preparing" : ""}`}
       onClick={() => onFocus(id)}
+      onMouseEnter={() => onHover?.(id)}
+      onMouseLeave={() => onHover?.(null)}
       title={name}
     >
-      <div className="item-bg">
+      <div className="item-img">
         {imageUrl ? (
           <img src={imageUrl} alt="" draggable={false} />
         ) : (
-          <div className="item-bg-placeholder">{name.charAt(0).toUpperCase()}</div>
-        )}
-        <div className="item-bg-overlay" />
-      </div>
-
-      <div className="item-spacer" />
-
-      <div className="item-controls" onClick={(e) => e.stopPropagation()}>
-        {/* Modifier */}
-        <div
-          className="mod-field"
-          onClick={() => {
-            setModVal(String(modifier));
-            setEditingMod(true);
-            setTimeout(() => modRef.current?.select(), 0);
-          }}
-        >
-          {editingMod ? (
-            <input
-              ref={modRef}
-              type="number"
-              className="mod-input"
-              value={modVal}
-              onInput={(e) => setModVal((e.target as HTMLInputElement).value)}
-              onBlur={commitMod}
-              onKeyDown={(e) => { if (e.key === "Enter") commitMod(); if (e.key === "Escape") setEditingMod(false); }}
-            />
-          ) : (
-            <span className="mod-display">{modStr}</span>
-          )}
-        </div>
-
-        {/* Count */}
-        <div
-          className="item-count"
-          onClick={() => {
-            setCountVal(String(count));
-            setEditingCount(true);
-            setTimeout(() => countRef.current?.select(), 0);
-          }}
-        >
-          {editingCount ? (
-            <input
-              ref={countRef}
-              type="number"
-              className="count-input"
-              value={countVal}
-              onInput={(e) => setCountVal((e.target as HTMLInputElement).value)}
-              onBlur={commitCount}
-              onKeyDown={(e) => { if (e.key === "Enter") commitCount(); if (e.key === "Escape") setEditingCount(false); }}
-            />
-          ) : (
-            <span className="count-display">{count}</span>
-          )}
-        </div>
-
-        {/* Roll buttons: 劣 / 🎲 / 优 */}
-        {showRollButtons && (
-          <div className="roll-buttons">
-            <button
-              className="roll-btn roll-dis"
-              onClick={() => onRoll(id, "disadvantage")}
-              disabled={disableRoll}
-              title="2d20kl1 (Disadvantage)"
-            >
-              劣
-            </button>
-            <button
-              className="roll-btn roll-normal"
-              onClick={() => onRoll(id, "normal")}
-              disabled={disableRoll}
-              title="1d20"
-            >
-              🎲
-            </button>
-            <button
-              className="roll-btn roll-adv"
-              onClick={() => onRoll(id, "advantage")}
-              disabled={disableRoll}
-              title="2d20kh1 (Advantage)"
-            >
-              优
-            </button>
-          </div>
+          <div className="item-img-placeholder">{name.charAt(0).toUpperCase()}</div>
         )}
       </div>
+
+      {/* Modifier overlay — top-left corner of the image area, click to edit */}
+      <div
+        className="item-mod"
+        onClick={(e) => {
+          e.stopPropagation();
+          setModVal(String(modifier));
+          setEditingMod(true);
+          setTimeout(() => modRef.current?.select(), 0);
+        }}
+      >
+        {editingMod ? (
+          <input
+            ref={modRef}
+            type="number"
+            className="mod-input"
+            value={modVal}
+            onInput={(e) => setModVal((e.target as HTMLInputElement).value)}
+            onBlur={commitMod}
+            onKeyDown={(e) => { if (e.key === "Enter") commitMod(); if (e.key === "Escape") setEditingMod(false); }}
+          />
+        ) : (
+          <span>{modStr}</span>
+        )}
+      </div>
+
+      {/* Count footer — always visible, editable by owner/GM */}
+      <div
+        className={`item-count ${canEdit ? "" : "locked"}`}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (!canEdit) return;
+          setCountVal(String(count));
+          setEditingCount(true);
+          setTimeout(() => countRef.current?.select(), 0);
+        }}
+      >
+        {editingCount && canEdit ? (
+          <input
+            ref={countRef}
+            type="number"
+            className="count-input"
+            value={countVal}
+            onInput={(e) => setCountVal((e.target as HTMLInputElement).value)}
+            onBlur={commitCount}
+            onKeyDown={(e) => { if (e.key === "Enter") commitCount(); if (e.key === "Escape") setEditingCount(false); }}
+          />
+        ) : (
+          <span className="count-display">{count}</span>
+        )}
+      </div>
+
+      {/* Roll buttons — absolutely positioned BELOW the card, fit exactly
+          the card width so rows don't collide. */}
+      {showRollButtons && (
+        <div className="roll-buttons" onClick={(e) => e.stopPropagation()}>
+          <button
+            className="roll-btn roll-dis"
+            onClick={() => onRoll(id, "disadvantage")}
+            disabled={disableRoll}
+            title="2d20kl1 (劣势)"
+          >
+            <D20DisIcon />
+          </button>
+          <button
+            className="roll-btn roll-normal"
+            onClick={() => onRoll(id, "normal")}
+            disabled={disableRoll}
+            title="1d20"
+          >
+            <D20Icon />
+          </button>
+          <button
+            className="roll-btn roll-adv"
+            onClick={() => onRoll(id, "advantage")}
+            disabled={disableRoll}
+            title="2d20kh1 (优势)"
+          >
+            <D20AdvIcon />
+          </button>
+        </div>
+      )}
+
+      {/* End-turn button — active non-GM owner only. Takes the same slot as
+          roll buttons (during combat, rolls aren't shown to non-GMs). */}
+      {showEndTurn && !showRollButtons && (
+        <button
+          className="end-turn-btn"
+          onClick={(e) => { e.stopPropagation(); onEndTurn?.(); }}
+          title="结束当前回合，进入下一个"
+        >
+          {endTurnLabel ?? "结束回合"}
+        </button>
+      )}
     </div>
   );
 }

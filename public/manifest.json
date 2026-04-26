@@ -1,16 +1,10 @@
 {
   "name": "Full Initiative Tracker",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "manifest_version": 1,
   "author": "FullPeople",
   "homepage_url": "https://github.com/FullPeople/Full_initiative_tracker",
-  "description": "A full-featured initiative tracker with combat effects, camera focus, turn management, and i18n support",
+  "description": "Initiative tracker with combat effects, camera focus, Dice+ integration, auto left-side panel, and more",
   "icon": "/initiative/icon.svg",
-  "action": {
-    "title": "Initiative Tracker",
-    "icon": "/initiative/icon.svg",
-    "popover": "/initiative/index.html",
-    "height": 500,
-    "width": 300
-  }
+  "background_url": "/initiative/background.html"
 }

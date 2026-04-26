@@ -21,7 +21,8 @@ export default defineConfig(({ command }) => ({
   build: {
     rollupOptions: {
       input: {
-        main: resolve(__dirname, "index.html"),
+        background: resolve(__dirname, "background.html"),
+        panel: resolve(__dirname, "panel.html"),
         combatEffect: resolve(__dirname, "combat-effect.html"),
       },
     },

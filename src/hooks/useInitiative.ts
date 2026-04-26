@@ -10,13 +10,14 @@ import {
   BROADCAST_FOCUS,
   BROADCAST_OPEN_PANEL,
   BROADCAST_CLOSE_PANEL,
+  BROADCAST_END_TURN_REQUEST,
   COMBAT_EFFECT_MODAL_ID,
   PLUGIN_ID,
   DICE_PLUS_ROLL_REQUEST,
   DICE_PLUS_ROLL_RESULT,
   DICE_PLUS_ROLL_ERROR,
 } from "../utils/constants";
-import { itemToInitiativeItem, getCombatState, setCombatState } from "../utils/metadata";
+import { itemToInitiativeItem, getCombatState } from "../utils/metadata";
 import { getStoredLang } from "../utils/i18n";
 
 export type RollType = "disadvantage" | "normal" | "advantage";
@@ -40,6 +41,22 @@ function localRoll(type: RollType): number {
   }
 }
 
+// Stable tiebreak: 1% precision random, stored as decimal
+function genTiebreak(): number {
+  // Random in [0, 0.9999)
+  return Math.random();
+}
+
+// Sort: count+modifier DESC, then modifier DESC, then tiebreak ASC (stable)
+function sortInitiative(a: InitiativeItem, b: InitiativeItem): number {
+  const totalA = a.count + a.modifier;
+  const totalB = b.count + b.modifier;
+  if (totalA !== totalB) return totalB - totalA;
+  if (a.modifier !== b.modifier) return b.modifier - a.modifier;
+  // ascending tiebreak — doesn't matter, just stable
+  return a.tiebreak - b.tiebreak;
+}
+
 let rollCounter = 0;
 
 export function useInitiative() {
@@ -50,16 +67,60 @@ export function useInitiative() {
     round: 0,
   });
   const [diceRolling, setDiceRolling] = useState(false);
+  const [playerId, setPlayerId] = useState("");
+  const [isGM, setIsGM] = useState(false);
 
   const items = useMemo(
     () => allItems.filter((i) => i.visible),
     [allItems]
   );
 
-  // Auto-activate tracking — all in refs to avoid stale closures
   const prevActiveId = useRef<string | null>(null);
   const prevVisibleIds = useRef<string[]>([]);
   const autoActivateLocked = useRef(false);
+
+  // Mirrors state as refs so stable (empty-deps) callbacks can read latest
+  // values without forcing a re-create chain on every state change.
+  const combatStateRef = useRef<CombatState>({
+    inCombat: false, preparing: false, round: 0,
+  });
+  const isGMRef = useRef(false);
+  const allItemsRef = useRef<InitiativeItem[]>([]);
+  const playerIdRef = useRef("");
+  // Optimistic active-id: updated eagerly when the GM clicks next/prev so
+  // rapid clicks chain correctly even before the scene refresh arrives.
+  const optimisticActiveIdRef = useRef<string | null>(null);
+  // Serial write queue for turn changes: rapid clicks queue onto this chain
+  // instead of racing / dropping. Each iteration reads the latest target
+  // from the optimistic ref, so queued writes always aim at the latest state.
+  const turnWriteChainRef = useRef<Promise<void>>(Promise.resolve());
+  // Last id we told the server is active. Used as `prev` for the next write
+  // so the 2-item updateItems correctly flips only the two that changed.
+  const lastWrittenActiveIdRef = useRef<string | null>(null);
+  // Wrapper ref for advanceTurn so the broadcast listener (defined before
+  // advanceTurn) can invoke the latest closure.
+  const advanceTurnRef = useRef<(dir: 1 | -1) => void>(() => {});
+
+  // Cache player info
+  useEffect(() => {
+    OBR.player.getId().then((id) => { setPlayerId(id); playerIdRef.current = id; });
+    OBR.player.getRole().then((r) => {
+      const gm = r === "GM";
+      setIsGM(gm);
+      isGMRef.current = gm;
+    });
+    const unsub = OBR.player.onChange((p) => {
+      const gm = p.role === "GM";
+      setIsGM(gm);
+      isGMRef.current = gm;
+    });
+    return unsub;
+  }, []);
+
+  // Keep allItemsRef synced with allItems so stable callbacks read latest.
+  useEffect(() => {
+    allItemsRef.current = allItems;
+  }, [allItems]);
 
   const refreshItems = useCallback(async () => {
     const sceneItems = await OBR.scene.items.getItems(
@@ -68,28 +129,41 @@ export function useInitiative() {
     const mapped = sceneItems
       .map(itemToInitiativeItem)
       .filter((x): x is InitiativeItem => x !== null)
-      .sort((a, b) => (b.count + b.modifier) - (a.count + a.modifier));
+      .sort(sortInitiative);
+
+    // Ensure every item has a stable tiebreak (assign on first sight)
+    const missingTb = mapped.filter((i) => i.tiebreak === 0);
+    if (missingTb.length > 0) {
+      try {
+        await OBR.scene.items.updateItems(
+          missingTb.map((i) => i.id),
+          (drafts) => {
+            for (const d of drafts) {
+              const ex = d.metadata[METADATA_KEY] as any;
+              if (ex && (!ex.tiebreak || ex.tiebreak === 0)) {
+                d.metadata[METADATA_KEY] = { ...ex, tiebreak: genTiebreak() };
+              }
+            }
+          }
+        );
+        // Next onChange will trigger another refresh with tiebreaks set
+        return;
+      } catch {}
+    }
 
     const visible = mapped.filter((i) => i.visible);
     const activeItem = visible.find((i) => i.active);
 
-    // --- Auto-activate logic (inside refreshItems, no separate effect) ---
-    // Only run during combat, only if not already handling one
-    if (!autoActivateLocked.current) {
-      // Read combat state directly from OBR to avoid stale React state
-      let inCombat = false;
-      try {
-        const meta = await OBR.scene.getMetadata();
-        inCombat = !!(meta[COMBAT_STATE_KEY] as any)?.inCombat;
-      } catch {}
+    // Auto-activate: active item was removed during combat. GM-only; players
+    // shouldn't mutate item metadata from a passive refresh — it'd also
+    // race. Using the local ref avoids an extra scene-metadata round-trip.
+    if (isGMRef.current && !autoActivateLocked.current) {
+      const inCombat = combatStateRef.current.inCombat;
 
       if (inCombat && visible.length > 0 && !activeItem) {
-        // No active item in combat — need to auto-activate
         const prev = prevActiveId.current;
         if (prev) {
           autoActivateLocked.current = true;
-
-          // Find best target: same index position as removed item, clamped
           const oldIds = prevVisibleIds.current;
           const prevIdx = oldIds.indexOf(prev);
           const targetIdx = Math.min(
@@ -97,43 +171,45 @@ export function useInitiative() {
             visible.length - 1
           );
           const nextId = visible[targetIdx].id;
-
-          // Use IDs from THIS refresh (fresh, not stale)
           const visibleIds = visible.map((i) => i.id);
           try {
             await OBR.scene.items.updateItems(visibleIds, (drafts) => {
               for (const d of drafts) {
                 const ex = d.metadata[METADATA_KEY] as any;
-                if (ex) {
-                  d.metadata[METADATA_KEY] = { ...ex, active: d.id === nextId };
-                }
+                if (ex) d.metadata[METADATA_KEY] = { ...ex, active: d.id === nextId };
               }
             });
             prevActiveId.current = nextId;
-          } catch {
-            // Items may have changed between getItems and updateItems — ignore
-          }
-
-          // Keep locked briefly so the onChange from our update doesn't re-trigger
+          } catch {}
           setTimeout(() => { autoActivateLocked.current = false; }, 300);
-          // Don't update state or refs yet — next onChange will do a clean refresh
           return;
         }
       }
     }
 
-    // Normal path: update state and refs
-    if (activeItem) {
-      prevActiveId.current = activeItem.id;
-    }
+    if (activeItem) prevActiveId.current = activeItem.id;
     prevVisibleIds.current = visible.map((i) => i.id);
     setAllItems(mapped);
   }, []);
 
   const refreshCombat = useCallback(async () => {
     const state = await getCombatState();
+    combatStateRef.current = state;
     setCombatStateLocal(state);
   }, []);
+
+  // Fast-path write: merge into local ref (always latest) and push directly.
+  // Using a ref instead of the state value avoids the extra read round-trip
+  // AND keeps this callback stable across renders, so the six combat-flow
+  // callbacks that depend on it don't re-create every state change.
+  const writeCombatState = useCallback(
+    (patch: Partial<CombatState>) => {
+      const next = { ...combatStateRef.current, ...patch };
+      combatStateRef.current = next; // eagerly mirror so a follow-up call uses the fresh value
+      return OBR.scene.setMetadata({ [COMBAT_STATE_KEY]: next });
+    },
+    []
+  );
 
   useEffect(() => {
     refreshItems();
@@ -142,7 +218,6 @@ export function useInitiative() {
     const unsubItems = OBR.scene.items.onChange(() => refreshItems());
     const unsubMeta = OBR.scene.onMetadataChange(() => refreshCombat());
 
-    // Combat start: show effect + open panel
     const unsubStart = OBR.broadcast.onMessage(
       BROADCAST_COMBAT_START,
       (event) => {
@@ -158,7 +233,6 @@ export function useInitiative() {
       }
     );
 
-    // Combat preparation: show effect + open panel
     const unsubPrepare = OBR.broadcast.onMessage(
       BROADCAST_COMBAT_PREPARE,
       (event) => {
@@ -176,13 +250,11 @@ export function useInitiative() {
       }
     );
 
-    // Combat end
     const unsubEnd = OBR.broadcast.onMessage(BROADCAST_COMBAT_END, () => {
       refreshCombat();
       refreshItems();
     });
 
-    // Focus broadcast
     const unsubFocus = OBR.broadcast.onMessage(
       BROADCAST_FOCUS,
       async (event) => {
@@ -209,14 +281,13 @@ export function useInitiative() {
     );
 
     const unsubOpenPanel = OBR.broadcast.onMessage(BROADCAST_OPEN_PANEL, () => {
-      OBR.action.open();
+      try { OBR.action.open(); } catch {}
     });
 
     const unsubClosePanel = OBR.broadcast.onMessage(BROADCAST_CLOSE_PANEL, () => {
-      OBR.action.close();
+      try { OBR.action.close(); } catch {}
     });
 
-    // Dice+ roll result listener
     const unsubDiceResult = OBR.broadcast.onMessage(
       DICE_PLUS_ROLL_RESULT,
       async (event) => {
@@ -244,7 +315,6 @@ export function useInitiative() {
       }
     );
 
-    // Dice+ roll error
     const unsubDiceError = OBR.broadcast.onMessage(
       DICE_PLUS_ROLL_ERROR,
       async (event) => {
@@ -252,6 +322,22 @@ export function useInitiative() {
         if (!data?.rollId) return;
         OBR.notification.show(`Dice+ error: ${data.error || "unknown"}`);
         setDiceRolling(false);
+      }
+    );
+
+    // End-turn request from a player: only the GM client actually advances
+    // so there's never two writers racing for the same write.
+    const unsubEndReq = OBR.broadcast.onMessage(
+      BROADCAST_END_TURN_REQUEST,
+      (event) => {
+        if (!isGMRef.current) return;
+        const reqActive = (event.data as any)?.activeId as string | undefined;
+        // Sanity check: only advance if the player thought they were active.
+        // Prevents a stale request from skipping a turn after the GM already
+        // moved on via their own controls.
+        const curActive = allItemsRef.current.find((i) => i.active)?.id;
+        if (reqActive && curActive && reqActive !== curActive) return;
+        advanceTurnRef.current(1);
       }
     );
 
@@ -266,6 +352,7 @@ export function useInitiative() {
       unsubClosePanel();
       unsubDiceResult();
       unsubDiceError();
+      unsubEndReq();
     };
   }, [refreshItems, refreshCombat]);
 
@@ -293,7 +380,20 @@ export function useInitiative() {
     focusItem(itemId);
   }, [focusItem]);
 
+  // Can current player edit this item's count? GM or owner only.
+  const canEdit = useCallback((item: InitiativeItem): boolean => {
+    if (isGM) return true;
+    return !!playerId && item.ownerId === playerId;
+  }, [isGM, playerId]);
+
   const updateCount = useCallback(async (itemId: string, count: number) => {
+    const item = allItemsRef.current.find((i) => i.id === itemId);
+    if (!item) return;
+    const pid = playerIdRef.current;
+    if (!isGMRef.current && (!pid || item.ownerId !== pid)) {
+      OBR.notification.show("只有角色的拥有者或 DM 可以修改");
+      return;
+    }
     await OBR.scene.items.updateItems([itemId], (drafts) => {
       for (const d of drafts) {
         const existing = d.metadata[METADATA_KEY] as any;
@@ -310,10 +410,7 @@ export function useInitiative() {
     });
   }, []);
 
-  // Roll initiative locally (for GM, or fallback)
   const rollInitiativeLocal = useCallback(async (itemId: string, type: RollType) => {
-    const item = allItems.find((i) => i.id === itemId);
-    const mod = item?.modifier ?? 0;
     const roll = localRoll(type);
     await OBR.scene.items.updateItems([itemId], (drafts) => {
       for (const d of drafts) {
@@ -321,19 +418,17 @@ export function useInitiative() {
         d.metadata[METADATA_KEY] = { ...existing, count: roll };
       }
     });
-    const modStr = mod >= 0 ? `+${mod}` : `${mod}`;
-    const typeLabel = type === "disadvantage" ? " (劣势)" : type === "advantage" ? " (优势)" : "";
-    OBR.notification.show(`🎲 ${item?.name ?? ""}: ${roll} [${modStr}]${typeLabel}`);
-  }, [allItems]);
+  }, []);
 
-  // Roll via Dice+ (for players during preparation)
+  const diceRollingRef = useRef(false);
+  useEffect(() => { diceRollingRef.current = diceRolling; }, [diceRolling]);
+
   const rollInitiativeDicePlus = useCallback(async (itemId: string, type: RollType) => {
-    const item = allItems.find((i) => i.id === itemId);
-    if (!item || item.rolled || diceRolling) return;
+    const item = allItemsRef.current.find((i) => i.id === itemId);
+    if (!item || item.rolled || diceRollingRef.current) return;
 
     const notation = diceNotation(type);
 
-    // Lock all dice buttons and hide this item's buttons
     setDiceRolling(true);
     await OBR.scene.items.updateItems([itemId], (drafts) => {
       for (const d of drafts) {
@@ -344,7 +439,7 @@ export function useInitiative() {
       }
     });
 
-    const [playerId, playerName] = await Promise.all([
+    const [pid, playerName] = await Promise.all([
       OBR.player.getId(),
       OBR.player.getName(),
     ]);
@@ -352,7 +447,7 @@ export function useInitiative() {
     rollCounter++;
     await OBR.broadcast.sendMessage(DICE_PLUS_ROLL_REQUEST, {
       rollId: `init-${itemId}-${rollCounter}`,
-      playerId,
+      playerId: pid,
       playerName,
       diceNotation: notation,
       rollTarget: "everyone",
@@ -360,78 +455,99 @@ export function useInitiative() {
       showResults: true,
       timestamp: Date.now(),
     }, { destination: "LOCAL" });
-  }, [allItems, diceRolling]);
+  }, []);
 
-  const setActiveItem = useCallback(
-    async (activeId: string) => {
-      const allIds = allItems.map((i) => i.id);
-      if (allIds.length === 0) return;
+  // setActiveItemFromIds: explicit prev + next so rapid clicks chain correctly
+  // without reading possibly-stale allItems to re-derive prev. Reads via ref
+  // as a fallback when prev isn't known.
+  const setActiveItemFromIds = useCallback(
+    async (activeId: string, prevId: string | null) => {
+      const ids: string[] = [activeId];
+      const actualPrev = prevId
+        ?? allItemsRef.current.find((i) => i.active)?.id
+        ?? null;
+      if (actualPrev && actualPrev !== activeId) ids.push(actualPrev);
+      await OBR.scene.items.updateItems(ids, (drafts) => {
+        for (const d of drafts) {
+          const existing = d.metadata[METADATA_KEY] as any;
+          if (existing) {
+            d.metadata[METADATA_KEY] = { ...existing, active: d.id === activeId };
+          }
+        }
+      });
+    },
+    []
+  );
 
+  const fireBroadcast = (msg: string, data: any) => {
+    OBR.broadcast.sendMessage(msg, data).catch(() => {});
+  };
+
+  // All flow handlers below read state via refs and carry stable deps so
+  // their identity never changes — CombatControls re-renders only when its
+  // own props change, not on every items/combatState tick. Rapid clicks also
+  // use an optimistic ref + in-flight lock so they can't fire concurrent
+  // writes that crash OBR.
+
+  const startPreparation = useCallback(async (effectType: EffectType = "prepare") => {
+    const all = allItemsRef.current;
+    if (all.filter((i) => i.visible).length === 0) return;
+    const lang = getStoredLang();
+    setDiceRolling(false);
+    optimisticActiveIdRef.current = null;
+    lastWrittenActiveIdRef.current = null;
+
+    const allIds = all.map((i) => i.id);
+    if (allIds.length > 0) {
       await OBR.scene.items.updateItems(allIds, (drafts) => {
         for (const d of drafts) {
           const existing = d.metadata[METADATA_KEY] as any;
           if (existing) {
             d.metadata[METADATA_KEY] = {
-              ...existing,
-              active: d.id === activeId,
+              ...existing, active: false, rolled: false, count: 0,
             };
           }
         }
       });
-    },
-    [allItems]
-  );
-
-  const startPreparation = useCallback(async (effectType: EffectType = "prepare") => {
-    if (items.length === 0) return;
-    const lang = getStoredLang();
-
-    const allIds = allItems.map((i) => i.id);
-    if (allIds.length > 0) {
-      await OBR.scene.items.updateItems(allIds, (drafts) => {
-        for (const d of drafts) {
-          const existing = d.metadata[METADATA_KEY] as any;
-          if (existing) {
-            d.metadata[METADATA_KEY] = { ...existing, active: false, rolled: false };
-          }
-        }
-      });
     }
-
-    setDiceRolling(false);
-    await setCombatState({ preparing: true, inCombat: false, round: 0 });
-    await OBR.broadcast.sendMessage(BROADCAST_COMBAT_PREPARE, { lang, effectType });
-    await OBR.broadcast.sendMessage(BROADCAST_OPEN_PANEL, {});
-  }, [items, allItems]);
+    await writeCombatState({ preparing: true, inCombat: false, round: 0 });
+    fireBroadcast(BROADCAST_COMBAT_PREPARE, { lang, effectType });
+    fireBroadcast(BROADCAST_OPEN_PANEL, {});
+  }, [writeCombatState]);
 
   const startCombat = useCallback(async () => {
-    if (items.length === 0) return;
+    const all = allItemsRef.current;
+    const visible = all.filter((i) => i.visible);
+    if (visible.length === 0) return;
 
-    const firstId = items[0].id;
+    const firstId = visible[0].id;
     const lang = getStoredLang();
+    optimisticActiveIdRef.current = firstId;
+    lastWrittenActiveIdRef.current = firstId;
 
-    const allIds = allItems.map((i) => i.id);
+    const allIds = all.map((i) => i.id);
     await OBR.scene.items.updateItems(allIds, (drafts) => {
       for (const d of drafts) {
         const existing = d.metadata[METADATA_KEY] as any;
         if (existing) {
           d.metadata[METADATA_KEY] = {
-            ...existing,
-            rolled: false,
-            active: d.id === firstId,
+            ...existing, rolled: false, active: d.id === firstId,
           };
         }
       }
     });
-
-    await setCombatState({ preparing: false, inCombat: true, round: 1 });
-    await OBR.broadcast.sendMessage(BROADCAST_COMBAT_START, { lang });
-    await OBR.broadcast.sendMessage(BROADCAST_OPEN_PANEL, {});
-    await broadcastFocus(firstId);
-  }, [items, allItems, broadcastFocus]);
+    await writeCombatState({ preparing: false, inCombat: true, round: 1 });
+    fireBroadcast(BROADCAST_COMBAT_START, { lang });
+    fireBroadcast(BROADCAST_OPEN_PANEL, {});
+    broadcastFocus(firstId).catch(() => {});
+  }, [broadcastFocus, writeCombatState]);
 
   const cancelPreparation = useCallback(async () => {
-    const allIds = allItems.map((i) => i.id);
+    setDiceRolling(false);
+    optimisticActiveIdRef.current = null;
+    lastWrittenActiveIdRef.current = null;
+
+    const allIds = allItemsRef.current.map((i) => i.id);
     if (allIds.length > 0) {
       await OBR.scene.items.updateItems(allIds, (drafts) => {
         for (const d of drafts) {
@@ -442,40 +558,88 @@ export function useInitiative() {
         }
       });
     }
-    setDiceRolling(false);
-    await setCombatState({ preparing: false, inCombat: false, round: 0 });
-  }, [allItems]);
+    await writeCombatState({ preparing: false, inCombat: false, round: 0 });
+  }, [writeCombatState]);
 
-  const nextTurn = useCallback(async () => {
-    if (items.length === 0) return;
-    const currentIndex = items.findIndex((i) => i.active);
-    const nextIndex = (currentIndex + 1) % items.length;
+  // Shared turn advance. Each click is queued onto a serial promise chain so
+  // rapid clicks don't race (we used to drop concurrent clicks; now every
+  // click's write runs in order). No optimistic UI — the list highlight and
+  // camera move together when the scene write returns. `optimisticActiveIdRef`
+  // is still used between clicks (updated eagerly at compute time) so queued
+  // clicks target the correct next item even while earlier writes are in
+  // flight, and `lastWrittenActiveIdRef` lets each write use a 2-item
+  // updateItems instead of N.
+  const advanceTurn = useCallback((dir: 1 | -1) => {
+    const visible = allItemsRef.current.filter((i) => i.visible);
+    if (visible.length === 0) return;
 
-    if (nextIndex === 0) {
-      await setCombatState({ round: combatState.round + 1 });
+    const currentId =
+      optimisticActiveIdRef.current ?? visible.find((i) => i.active)?.id ?? null;
+    const currentIndex = currentId
+      ? visible.findIndex((i) => i.id === currentId)
+      : -1;
+    const len = visible.length;
+    const nextIndex = dir === 1
+      ? (currentIndex + 1 + len) % len
+      : (currentIndex <= 0 ? len - 1 : currentIndex - 1);
+    const nextId = visible[nextIndex].id;
+
+    let nextRound: number | null = null;
+    const round = combatStateRef.current.round;
+    if (dir === 1 && nextIndex === 0) nextRound = round + 1;
+    if (dir === -1 && nextIndex === len - 1 && currentIndex === 0 && round > 1) {
+      nextRound = round - 1;
     }
 
-    const nextId = items[nextIndex].id;
-    await setActiveItem(nextId);
-    await broadcastFocus(nextId);
-  }, [items, combatState.round, setActiveItem, broadcastFocus]);
+    // Advance the "what queued clicks will see" pointer eagerly.
+    optimisticActiveIdRef.current = nextId;
 
-  const prevTurn = useCallback(async () => {
-    if (items.length === 0) return;
-    const currentIndex = items.findIndex((i) => i.active);
-    const prevIndex = currentIndex <= 0 ? items.length - 1 : currentIndex - 1;
+    // Queue scene write onto chain — runs serially, never drops.
+    turnWriteChainRef.current = turnWriteChainRef.current.then(async () => {
+      try {
+        const prev =
+          lastWrittenActiveIdRef.current
+          ?? allItemsRef.current.find((i) => i.active)?.id
+          ?? null;
+        if (nextRound !== null) {
+          await writeCombatState({ round: nextRound });
+        }
+        await setActiveItemFromIds(nextId, prev);
+        lastWrittenActiveIdRef.current = nextId;
+        broadcastFocus(nextId).catch(() => {});
+      } catch {}
+    });
+    return turnWriteChainRef.current;
+  }, [broadcastFocus, setActiveItemFromIds, writeCombatState]);
 
-    if (prevIndex === items.length - 1 && currentIndex === 0 && combatState.round > 1) {
-      await setCombatState({ round: combatState.round - 1 });
+  const nextTurn = useCallback(() => advanceTurn(1), [advanceTurn]);
+  const prevTurn = useCallback(() => advanceTurn(-1), [advanceTurn]);
+
+  // Keep ref in sync so the broadcast listener above can invoke the latest
+  // advanceTurn closure (it captures the writeCombatState that was current at
+  // listener-setup time otherwise).
+  useEffect(() => { advanceTurnRef.current = advanceTurn; }, [advanceTurn]);
+
+  // Player-facing end-turn — never writes directly. Broadcasts to the GM
+  // client, which will advance via the listener above. GM clients call
+  // nextTurn directly (no broadcast needed).
+  const requestEndTurn = useCallback(() => {
+    if (isGMRef.current) {
+      advanceTurn(1);
+      return;
     }
-
-    const prevId = items[prevIndex].id;
-    await setActiveItem(prevId);
-    await broadcastFocus(prevId);
-  }, [items, combatState.round, setActiveItem, broadcastFocus]);
+    const activeId = allItemsRef.current.find((i) => i.active)?.id;
+    OBR.broadcast
+      .sendMessage(BROADCAST_END_TURN_REQUEST, { activeId })
+      .catch(() => {});
+  }, [advanceTurn]);
 
   const endCombat = useCallback(async () => {
-    const allIds = allItems.map((i) => i.id);
+    prevActiveId.current = null;
+    optimisticActiveIdRef.current = null;
+    lastWrittenActiveIdRef.current = null;
+
+    const allIds = allItemsRef.current.map((i) => i.id);
     if (allIds.length > 0) {
       await OBR.scene.items.updateItems(allIds, (drafts) => {
         for (const d of drafts) {
@@ -486,16 +650,18 @@ export function useInitiative() {
         }
       });
     }
-    prevActiveId.current = null;
-    await setCombatState({ inCombat: false, preparing: false, round: 0 });
-    await OBR.broadcast.sendMessage(BROADCAST_COMBAT_END, {});
-    await OBR.broadcast.sendMessage(BROADCAST_CLOSE_PANEL, {});
-  }, [allItems]);
+    await writeCombatState({ inCombat: false, preparing: false, round: 0 });
+    fireBroadcast(BROADCAST_COMBAT_END, {});
+    fireBroadcast(BROADCAST_CLOSE_PANEL, {});
+  }, [writeCombatState]);
 
   return {
     items,
     combatState,
     diceRolling,
+    playerId,
+    isGM,
+    canEdit,
     focusItem,
     updateCount,
     updateModifier,
@@ -507,5 +673,6 @@ export function useInitiative() {
     nextTurn,
     prevTurn,
     endCombat,
+    requestEndTurn,
   };
 }

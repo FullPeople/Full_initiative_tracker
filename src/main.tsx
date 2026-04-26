@@ -4,27 +4,35 @@ import OBR from "@owlbear-rodeo/sdk";
 import { InitiativeList } from "./components/InitiativeList";
 import { CombatControls } from "./components/CombatControls";
 import { useInitiative, RollType } from "./hooks/useInitiative";
-import { usePlayerRole } from "./hooks/usePlayerRole";
-import {
-  METADATA_KEY,
-  COMBAT_STATE_KEY,
-  NEW_ITEM_DIALOG_ID,
-} from "./utils/constants";
+import { METADATA_KEY } from "./utils/constants";
 import { Lang, t, getStoredLang, setStoredLang } from "./utils/i18n";
+import {
+  setActiveRing,
+  setHoverRing,
+  clearAllRings,
+} from "./utils/visualEffects";
 import "./styles/initiative.css";
 
-export const LangContext = createContext<Lang>("en");
+const POPOVER_ID = "com.initiative-tracker/panel";
+// Mirrors background.ts constants — horizontal strip top-center.
+const COLLAPSED_WIDTH = 120;
+const COLLAPSED_HEIGHT = 40;
+const EXPANDED_WIDTH = 720;
+const EXPANDED_HEIGHT = 162;
+
+export const LangContext = createContext<Lang>("zh");
 
 function App() {
-  const role = usePlayerRole();
   const [lang, setLang] = useState<Lang>(getStoredLang);
   const {
     items,
     combatState,
+    diceRolling,
+    isGM,
+    canEdit,
     focusItem,
     updateCount,
     updateModifier,
-    diceRolling,
     rollInitiativeLocal,
     rollInitiativeDicePlus,
     startPreparation,
@@ -33,17 +41,101 @@ function App() {
     nextTurn,
     prevTurn,
     endCombat,
+    requestEndTurn,
   } = useInitiative();
 
-  const isGM = role === "GM";
-  const knownItemIds = useRef(new Set<string>());
+  // React state is the authoritative source — not window.innerWidth. The old
+  // resize listener flipped expanded→collapsed mid-way through OBR's iframe
+  // resize animation (when width crossed the threshold), so the UI briefly
+  // rendered mismatched layouts. Now we only change state on explicit calls.
+  const [expanded, setExpanded] = useState(() => {
+    try { return localStorage.getItem("it-expanded") !== "0"; } catch { return true; }
+  });
+  const [transitioning, setTransitioning] = useState(false);
+  const expandedRef = useRef(expanded);
+  useEffect(() => { expandedRef.current = expanded; }, [expanded]);
+
+  // Apply current state to OBR popover once on mount.
+  useEffect(() => {
+    const w = expandedRef.current ? EXPANDED_WIDTH : COLLAPSED_WIDTH;
+    const h = expandedRef.current ? EXPANDED_HEIGHT : COLLAPSED_HEIGHT;
+    OBR.popover.setWidth(POPOVER_ID, w).catch(() => {});
+    OBR.popover.setHeight(POPOVER_ID, h).catch(() => {});
+  }, []);
+
+  const setPanelExpanded = useCallback((next: boolean) => {
+    if (next === expandedRef.current) return;
+    expandedRef.current = next;
+    try { localStorage.setItem("it-expanded", next ? "1" : "0"); } catch {}
+
+    // Hide content for the length of OBR's resize animation so the user
+    // never sees mismatched layout (expanded content in a shrinking iframe,
+    // or collapsed rail stretched in a widening iframe). Feels like an
+    // abrupt snap, which is what the user asked for.
+    setTransitioning(true);
+    setExpanded(next);
+    const w = next ? EXPANDED_WIDTH : COLLAPSED_WIDTH;
+    const h = next ? EXPANDED_HEIGHT : COLLAPSED_HEIGHT;
+    OBR.popover.setWidth(POPOVER_ID, w).catch(() => {});
+    OBR.popover.setHeight(POPOVER_ID, h).catch(() => {});
+    setTimeout(() => setTransitioning(false), 260);
+  }, []);
+
+  const toggleExpanded = useCallback(() => {
+    setPanelExpanded(!expanded);
+  }, [expanded, setPanelExpanded]);
+
+  // ① Auto expand/collapse based on combat state
+  const wasActive = useRef(false);
+  useEffect(() => {
+    const isActive = combatState.preparing || combatState.inCombat;
+    // Enter active phase — expand
+    if (isActive && !wasActive.current) {
+      setPanelExpanded(true);
+    }
+    // Leave active phase — collapse
+    else if (!isActive && wasActive.current) {
+      setPanelExpanded(false);
+    }
+    wasActive.current = isActive;
+  }, [combatState.preparing, combatState.inCombat, setPanelExpanded]);
+
+  // ⑥ Visual effects — Active character ring (rotating, local)
+  const activeId = items.find((i) => i.active)?.id;
+  useEffect(() => {
+    if (combatState.inCombat && activeId) {
+      setActiveRing(activeId);
+    } else {
+      setActiveRing(null);
+    }
+    return () => { if (!combatState.inCombat) clearAllRings(); };
+  }, [activeId, combatState.inCombat]);
+
+  // Hover ring — local
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  useEffect(() => {
+    setHoverRing(hoveredId);
+  }, [hoveredId]);
+
+  // Catch fast mouse exits: clear hover when window/document loses focus
+  useEffect(() => {
+    const clear = () => setHoveredId(null);
+    window.addEventListener("blur", clear);
+    document.addEventListener("mouseleave", clear);
+    return () => {
+      window.removeEventListener("blur", clear);
+      document.removeEventListener("mouseleave", clear);
+    };
+  }, []);
+
+  // Clean up on unmount
+  useEffect(() => () => { clearAllRings(); }, []);
 
   const changeLang = (newLang: Lang) => {
     setLang(newLang);
     setStoredLang(newLang);
   };
 
-  // Roll handler: GM always local, players use Dice+ during preparation
   const handleRoll = useCallback(async (itemId: string, type: RollType) => {
     if (isGM || combatState.inCombat) {
       await rollInitiativeLocal(itemId, type);
@@ -52,202 +144,123 @@ function App() {
     }
   }, [isGM, combatState, rollInitiativeLocal, rollInitiativeDicePlus]);
 
-  // Register context menu
-  useEffect(() => {
-    OBR.contextMenu.create({
-      id: `${METADATA_KEY}/context-menu`,
-      icons: [
-        {
-          icon: `${import.meta.env.BASE_URL}icon.svg`,
-          label: t(lang, "addToInitiative"),
-          filter: {
-            every: [
-              { key: "type", value: "IMAGE" },
-              { key: ["metadata", METADATA_KEY], value: undefined },
-            ],
-          },
-        },
-        {
-          icon: `${import.meta.env.BASE_URL}icon.svg`,
-          label: t(lang, "removeFromInitiative"),
-          filter: {
-            every: [
-              { key: "type", value: "IMAGE" },
-            ],
-            some: [
-              { key: ["metadata", METADATA_KEY], value: undefined, operator: "!=" },
-            ],
-          },
-        },
-      ],
-      onClick: async (context) => {
-        const anyHasData = context.items.some(
-          (item) => item.metadata[METADATA_KEY] !== undefined
-        );
-        const ids = context.items.map((i) => i.id);
+  const handleClick = useCallback(async (itemId: string) => {
+    focusItem(itemId);
+  }, [focusItem]);
 
-        if (anyHasData) {
-          await OBR.scene.items.updateItems(ids, (drafts) => {
-            for (const d of drafts) {
-              delete d.metadata[METADATA_KEY];
-            }
-          });
-          OBR.notification.show(t(lang, "removed"));
-        } else {
-          await OBR.scene.items.updateItems(ids, (drafts) => {
-            for (const d of drafts) {
-              d.metadata[METADATA_KEY] = { count: 0, active: false, rolled: false };
-            }
-          });
-          OBR.notification.show(t(lang, "added"));
-        }
-      },
-    });
-  }, [lang]);
+  const stateClass = combatState.preparing ? "state-preparing"
+    : combatState.inCombat ? "state-combat" : "";
 
-  // Track new items during combat or preparation (GM only)
-  useEffect(() => {
-    if (!isGM) return;
-
-    const initKnown = async () => {
-      const allItems = await OBR.scene.items.getItems(
-        (item) =>
-          item.type === "IMAGE" &&
-          (item.layer === "CHARACTER" || item.layer === "MOUNT")
-      );
-      knownItemIds.current = new Set(allItems.map((i) => i.id));
-    };
-    initKnown();
-
-    return OBR.scene.items.onChange(async (sceneItems) => {
-      const metadata = await OBR.scene.getMetadata();
-      const combat = metadata[COMBAT_STATE_KEY] as
-        | { inCombat: boolean; preparing: boolean }
-        | undefined;
-
-      const characterItems = sceneItems.filter(
-        (i) =>
-          i.type === "IMAGE" &&
-          (i.layer === "CHARACTER" || i.layer === "MOUNT")
-      );
-
-      const isActive = combat?.inCombat || combat?.preparing;
-
-      if (!isActive) {
-        knownItemIds.current = new Set(characterItems.map((i) => i.id));
-        return;
-      }
-
-      for (const item of characterItems) {
-        if (
-          !knownItemIds.current.has(item.id) &&
-          !item.metadata[METADATA_KEY]
-        ) {
-          knownItemIds.current.add(item.id);
-          OBR.modal.open({
-            id: NEW_ITEM_DIALOG_ID,
-            url: `${import.meta.env.BASE_URL}new-item-dialog.html?itemId=${item.id}&itemName=${encodeURIComponent(item.name)}&lang=${getStoredLang()}`,
-            width: 300,
-            height: 240,
-          });
-        }
-      }
-
-      knownItemIds.current = new Set(characterItems.map((i) => i.id));
-    });
-  }, [isGM]);
-
-  // Dynamic height
-  useEffect(() => {
-    let lastHeight = 0;
-    let timer: ReturnType<typeof setTimeout>;
-
-    const observer = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        const height = Math.min(Math.ceil(entry.contentRect.height) + 2, 600);
-        const clamped = Math.max(height, 100);
-        if (Math.abs(clamped - lastHeight) > 5) {
-          clearTimeout(timer);
-          timer = setTimeout(() => {
-            lastHeight = clamped;
-            OBR.action.setHeight(clamped);
-          }, 100);
-        }
-      }
-    });
-
-    const root = document.getElementById("root");
-    if (root) observer.observe(root);
-    return () => { observer.disconnect(); clearTimeout(timer); };
-  }, []);
-
-  // Determine state class for persistent border
-  const stateClass = combatState.preparing
-    ? "state-preparing"
-    : combatState.inCombat
-    ? "state-combat"
-    : "";
+  // Collapsed: compact pill. Stays top-center like the expanded bar.
+  if (!expanded) {
+    return (
+      <div className={`app-pill ${stateClass} ${transitioning ? "transitioning" : ""}`}>
+        <button className="pill-btn" onClick={toggleExpanded} title="展开先攻面板">
+          <span className="icon">⚔</span>
+          {combatState.inCombat && (
+            <span className="pill-round">R{combatState.round}</span>
+          )}
+          {combatState.preparing && (
+            <span className="pill-round">{t(lang, "preparing")}</span>
+          )}
+        </button>
+      </div>
+    );
+  }
 
   return (
     <LangContext.Provider value={lang}>
-      <div className={`app-container ${stateClass}`}>
-        <div className="app-header">
-          <div className="header-title">
-            <span className="icon">⚔</span>
-            <span>{t(lang, "initiative")}</span>
-          </div>
+      <div className={`app-hbar ${stateClass} ${transitioning ? "transitioning" : ""}`}>
+        {/* Controls row — single centered cluster: 折叠 / state / 战斗按钮 /
+            EN / 关于. Everything hugs the middle so it doesn't waste edge space. */}
+        <div className="hbar-row hbar-row-controls">
+          <div className="hbar-cluster">
+            <button
+              className="collapse-btn"
+              onClick={toggleExpanded}
+              title="折叠"
+              aria-label="折叠"
+            >
+              {/* Chevron-down "V" — panel will collapse downward into the pill */}
+              <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
+                <path
+                  d="M3 6 L8 11 L13 6"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
 
-          <div className="header-center">
+            {combatState.preparing && (
+              <span className="state-text preparing">{t(lang, "preparing")}</span>
+            )}
+            {combatState.inCombat && (
+              <span className="state-text combat">
+                {t(lang, "round")} {combatState.round}
+              </span>
+            )}
+
+            {isGM && (
+              <CombatControls
+                combatState={combatState}
+                hasItems={items.length > 0}
+                onStartPreparation={startPreparation}
+                onStartCombat={startCombat}
+                onCancelPreparation={cancelPreparation}
+                onPrevTurn={prevTurn}
+                onNextTurn={nextTurn}
+                onEndCombat={endCombat}
+                lang={lang}
+              />
+            )}
+
             <select
               className="lang-select"
               value={lang}
               onChange={(e) => changeLang((e.target as HTMLSelectElement).value as Lang)}
+              title="Language"
             >
               <option value="en">EN</option>
               <option value="zh">中文</option>
             </select>
-            <span className="hint-icon" title={t(lang, "dragHint")}>?</span>
+            <button
+              className="about-btn"
+              onClick={() => {
+                OBR.modal.open({
+                  id: `${METADATA_KEY}/about`,
+                  url: `${import.meta.env.BASE_URL}about.html`,
+                  width: 420, height: 560,
+                });
+              }}
+              title={t(lang, "about")}
+            >
+              {t(lang, "about")}
+            </button>
           </div>
-
-          {combatState.preparing && (
-            <span className="round-badge preparing">
-              {t(lang, "preparing")}
-            </span>
-          )}
-
-          {combatState.inCombat && (
-            <span className="round-badge">
-              {t(lang, "round")} {combatState.round}
-            </span>
-          )}
         </div>
 
-        <InitiativeList
-          items={items}
-          inCombat={combatState.inCombat}
-          preparing={combatState.preparing}
-          isGM={isGM}
-          diceRolling={diceRolling}
-          onFocus={focusItem}
-          onUpdateCount={updateCount}
-          onUpdateModifier={updateModifier}
-          onRoll={handleRoll}
-          lang={lang}
-        />
-
-        {isGM && (
-          <CombatControls
-            combatState={combatState}
-            hasItems={items.length > 0}
-            onStartPreparation={startPreparation}
-            onStartCombat={startCombat}
-            onCancelPreparation={cancelPreparation}
-            onPrevTurn={prevTurn}
-            onNextTurn={nextTurn}
-            onEndCombat={endCombat}
+        <div className="hbar-row hbar-row-items">
+          <InitiativeList
+            items={items}
+            inCombat={combatState.inCombat}
+            preparing={combatState.preparing}
+            isGM={isGM}
+            playerId=""
+            diceRolling={diceRolling}
+            canEdit={canEdit}
+            onFocus={handleClick}
+            onHover={setHoveredId}
+            onUpdateCount={updateCount}
+            onUpdateModifier={updateModifier}
+            onRoll={handleRoll}
+            onEndTurn={requestEndTurn}
+            endTurnLabel={t(lang, "endTurn") || "结束回合"}
             lang={lang}
           />
-        )}
+        </div>
       </div>
     </LangContext.Provider>
   );
@@ -268,7 +281,7 @@ function PluginGate() {
   if (!ready || !sceneReady) {
     return (
       <div className="app-container">
-        <div className="loading-state">Loading...</div>
+        <div className="loading-state">加载中...</div>
       </div>
     );
   }

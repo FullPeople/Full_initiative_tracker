@@ -21,7 +21,6 @@ export function getImageUrl(item: Item): string {
 export function itemToInitiativeItem(item: Item): InitiativeItem | null {
   const data = getInitiativeData(item);
   if (!data) return null;
-  // Read dexMod from separate key or fallback to 0
   const modKey = "com.initiative-tracker/dexMod";
   const mod = typeof item.metadata[modKey] === "number" ? item.metadata[modKey] as number : 0;
   return {
@@ -33,6 +32,13 @@ export function itemToInitiativeItem(item: Item): InitiativeItem | null {
     rolled: !!data.rolled,
     visible: item.visible,
     imageUrl: getImageUrl(item),
+    tiebreak: typeof data.tiebreak === "number" ? data.tiebreak : 0,
+    // Prefer the live `item.createdUserId` — that's what OBR's "Give
+    // Ownership to Player" updates. The stored `data.ownerId` was captured
+    // at add-to-initiative time and goes stale if the GM later reassigns
+    // the character to a player, which caused delegated owners to lose
+    // their roll / edit buttons.
+    ownerId: item.createdUserId || data.ownerId || "",
   };
 }
 

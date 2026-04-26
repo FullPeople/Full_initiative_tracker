@@ -33,6 +33,10 @@ const translations = {
     rollDisadvantage: "Disadvantage",
     rollNormal: "Normal",
     rollAdvantage: "Advantage",
+    gatherHere: "Gather Initiative Here",
+    gathered: "Initiative characters gathered",
+    about: "About",
+    endTurn: "End Turn",
   },
   zh: {
     initiative: "先攻",
@@ -65,6 +69,10 @@ const translations = {
     rollDisadvantage: "劣势",
     rollNormal: "普通",
     rollAdvantage: "优势",
+    gatherHere: "集结先攻角色到此处",
+    gathered: "先攻角色已集结",
+    about: "关于",
+    endTurn: "结束回合",
   },
 } as const;
 

@@ -22,9 +22,13 @@ input::-webkit-inner-spin-button,input::-webkit-outer-spin-button{-webkit-appear
 .roll-row button:hover{background:rgba(255,255,255,.2)}
 .roll-dis{color:#e74c3c!important}
 .roll-dis:hover{border-color:#e74c3c!important;background:rgba(231,76,60,.2)!important}
-.roll-normal{font-size:18px!important}
+.roll-normal{color:#eee!important}
+.roll-normal:hover{border-color:#eee!important;background:rgba(238,238,238,.18)!important}
 .roll-adv{color:#2ecc71!important}
 .roll-adv:hover{border-color:#2ecc71!important;background:rgba(46,204,113,.2)!important}
+.d20-wrap{position:relative;display:inline-flex;align-items:center;justify-content:center;width:100%;height:100%}
+.d20-svg{width:22px;height:22px}
+.d20-overlay{position:absolute;top:0;right:-1px;width:11px;height:11px;pointer-events:none;filter:drop-shadow(0 0 1px rgba(0,0,0,.6))}
 .b{display:flex;gap:10px}
 .b button{padding:7px 20px;border-radius:6px;font-size:13px;cursor:pointer;border:none}
 .s{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2)!important;color:#aaa}
@@ -37,11 +41,25 @@ input::-webkit-inner-spin-button,input::-webkit-outer-spin-button{-webkit-appear
 <div class="d">
   <div class="t" id="title">设置先攻</div>
   <div class="n" id="name"></div>
-  <input type="number" id="val" placeholder="先攻值" autofocus>
+  <input type="number" id="val" placeholder="先攻值">
   <div class="roll-row">
-    <button class="roll-dis" id="rdis" title="2d20kl1">劣</button>
-    <button class="roll-normal" id="rnorm" title="1d20">🎲</button>
-    <button class="roll-adv" id="radv" title="2d20kh1">优</button>
+    <button class="roll-dis" id="rdis" title="2d20kl1">
+      <span class="d20-wrap">
+        <svg viewBox="0 0 24 24" class="d20-svg"><polygon points="12,2.5 21,7.5 21,16.5 12,21.5 3,16.5 3,7.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><polygon points="12,7 16.5,9.5 16.5,14.5 12,17 7.5,14.5 7.5,9.5" fill="currentColor" opacity="0.12"/><text x="12" y="14.1" text-anchor="middle" font-size="6.4" font-weight="700" fill="currentColor">20</text></svg>
+        <svg viewBox="0 0 10 10" class="d20-overlay"><path d="M5 8.8 L9 3 L1 3 Z" fill="#e74c3c" stroke="#2a0a0a" stroke-width="0.6" stroke-linejoin="round"/></svg>
+      </span>
+    </button>
+    <button class="roll-normal" id="rnorm" title="1d20">
+      <span class="d20-wrap">
+        <svg viewBox="0 0 24 24" class="d20-svg"><polygon points="12,2.5 21,7.5 21,16.5 12,21.5 3,16.5 3,7.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><polygon points="12,7 16.5,9.5 16.5,14.5 12,17 7.5,14.5 7.5,9.5" fill="currentColor" opacity="0.12"/><text x="12" y="14.1" text-anchor="middle" font-size="6.4" font-weight="700" fill="currentColor">20</text></svg>
+      </span>
+    </button>
+    <button class="roll-adv" id="radv" title="2d20kh1">
+      <span class="d20-wrap">
+        <svg viewBox="0 0 24 24" class="d20-svg"><polygon points="12,2.5 21,7.5 21,16.5 12,21.5 3,16.5 3,7.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><polygon points="12,7 16.5,9.5 16.5,14.5 12,17 7.5,14.5 7.5,9.5" fill="currentColor" opacity="0.12"/><text x="12" y="14.1" text-anchor="middle" font-size="6.4" font-weight="700" fill="currentColor">20</text></svg>
+        <svg viewBox="0 0 10 10" class="d20-overlay"><path d="M5 1.2 L9 7 L1 7 Z" fill="#2ecc71" stroke="#0a2a12" stroke-width="0.6" stroke-linejoin="round"/></svg>
+      </span>
+    </button>
   </div>
   <div class="b">
     <button class="s" id="skip">跳过</button>
@@ -92,7 +110,15 @@ OBR.onReady(async () => {
     const v = parseFloat(input.value);
     if (isNaN(v)) return;
     await OBR.scene.items.updateItems([itemId], items => {
-      for (const i of items) i.metadata[META_KEY] = { count: v, active: false };
+      for (const i of items) i.metadata[META_KEY] = {
+        count: v,
+        active: false,
+        rolled: false,
+        tiebreak: Math.random(),
+        // Use the item's creator/owner as initiative owner so delegated
+        // players can roll for their characters.
+        ownerId: i.createdUserId,
+      };
     });
     OBR.modal.close(MODAL_ID);
   };

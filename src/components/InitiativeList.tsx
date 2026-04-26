@@ -9,16 +9,23 @@ interface Props {
   inCombat: boolean;
   preparing: boolean;
   isGM: boolean;
+  playerId: string;
   diceRolling: boolean;
+  canEdit: (item: InitiativeItem) => boolean;
   onFocus: (id: string) => void;
+  onHover?: (id: string | null) => void;
   onUpdateCount: (id: string, count: number) => void;
   onUpdateModifier: (id: string, mod: number) => void;
   onRoll: (id: string, type: RollType) => void;
+  onEndTurn?: () => void;
+  endTurnLabel?: string;
   lang: Lang;
 }
 
 export function InitiativeList({
-  items, inCombat, preparing, isGM, diceRolling, onFocus, onUpdateCount, onUpdateModifier, onRoll, lang,
+  items, inCombat, preparing, isGM, diceRolling, canEdit,
+  onFocus, onHover, onUpdateCount, onUpdateModifier, onRoll,
+  onEndTurn, endTurnLabel, lang,
 }: Props) {
   if (items.length === 0) {
     return (
@@ -31,7 +38,10 @@ export function InitiativeList({
   }
 
   return (
-    <div className="initiative-list">
+    <div
+      className="initiative-list"
+      onMouseLeave={() => onHover?.(null)}
+    >
       {items.map((item) => (
         <InitiativeItemRow
           key={item.id}
@@ -45,11 +55,15 @@ export function InitiativeList({
           inCombat={inCombat}
           preparing={preparing}
           isGM={isGM}
+          canEdit={canEdit(item)}
           diceRolling={diceRolling}
           onFocus={onFocus}
+          onHover={onHover}
           onUpdateCount={onUpdateCount}
           onUpdateModifier={onUpdateModifier}
           onRoll={onRoll}
+          onEndTurn={onEndTurn}
+          endTurnLabel={endTurnLabel}
         />
       ))}
     </div>
