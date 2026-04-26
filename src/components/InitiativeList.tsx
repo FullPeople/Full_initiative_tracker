@@ -12,6 +12,7 @@ interface Props {
   playerId: string;
   diceRolling: boolean;
   canEdit: (item: InitiativeItem) => boolean;
+  canShowDice: boolean;
   onFocus: (id: string) => void;
   onHover?: (id: string | null) => void;
   onUpdateCount: (id: string, count: number) => void;
@@ -23,7 +24,7 @@ interface Props {
 }
 
 export function InitiativeList({
-  items, inCombat, preparing, isGM, diceRolling, canEdit,
+  items, inCombat, preparing, isGM, diceRolling, canEdit, canShowDice,
   onFocus, onHover, onUpdateCount, onUpdateModifier, onRoll,
   onEndTurn, endTurnLabel, lang,
 }: Props) {
@@ -56,6 +57,7 @@ export function InitiativeList({
           preparing={preparing}
           isGM={isGM}
           canEdit={canEdit(item)}
+          canShowDice={canShowDice}
           diceRolling={diceRolling}
           onFocus={onFocus}
           onHover={onHover}

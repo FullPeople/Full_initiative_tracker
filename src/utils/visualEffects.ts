@@ -106,16 +106,12 @@ export async function setActiveRing(targetId: string | null) {
   }
 
   // OBR does NOT snap an attached item to its target on attachment change —
-  // we still need to read the target's position AND scale and set them
-  // explicitly. The scale match makes the ring sized to the token's
-  // current visual size (resized tokens get correctly-sized rings).
+  // we still need to read the target's position and set it explicitly.
   let targetPos = { x: 0, y: 0 };
-  let targetScale = { x: 1, y: 1 };
   try {
     const targets = await OBR.scene.items.getItems([targetId]);
     if (targets.length === 0 || activeTargetId !== targetId) return;
     targetPos = targets[0].position;
-    if (targets[0].scale) targetScale = targets[0].scale;
   } catch { return; }
 
   const ringId = activeRingId;
@@ -125,7 +121,6 @@ export async function setActiveRing(targetId: string | null) {
         d.visible = true;
         d.attachedTo = targetId;
         d.position = targetPos;
-        d.scale = { x: targetScale.x, y: targetScale.y };
         d.rotation = 0;
       }
     });
@@ -202,12 +197,10 @@ export async function setHoverRing(targetId: string | null) {
   }
 
   let targetPos = { x: 0, y: 0 };
-  let targetScale = { x: 1, y: 1 };
   try {
     const targets = await OBR.scene.items.getItems([targetId]);
     if (targets.length === 0 || hoverTargetId !== targetId) return;
     targetPos = targets[0].position;
-    if (targets[0].scale) targetScale = targets[0].scale;
   } catch { return; }
 
   try {
@@ -216,7 +209,6 @@ export async function setHoverRing(targetId: string | null) {
         d.visible = true;
         d.attachedTo = targetId;
         d.position = targetPos;
-        d.scale = { x: targetScale.x, y: targetScale.y };
       }
     });
   } catch { return; }

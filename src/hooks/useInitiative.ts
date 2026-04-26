@@ -69,6 +69,10 @@ export function useInitiative() {
   const [diceRolling, setDiceRolling] = useState(false);
   const [playerId, setPlayerId] = useState("");
   const [isGM, setIsGM] = useState(false);
+  // null = probing, true = installed, false = not installed.
+  // Used to hide dice buttons for non-GMs who don't have Dice+ (their roll
+  // requests would never get a response and the buttons just confuse them).
+  const [dicePlusAvailable, setDicePlusAvailable] = useState<boolean | null>(null);
 
   const items = useMemo(
     () => allItems.filter((i) => i.visible),
@@ -121,6 +125,48 @@ export function useInitiative() {
   useEffect(() => {
     allItemsRef.current = allItems;
   }, [allItems]);
+
+  // Probe Dice+ presence on mount. We send a minimal silent roll request
+  // and wait for either a result or an error broadcast back. If nothing
+  // returns within 1.5s we assume Dice+ isn't installed.
+  useEffect(() => {
+    const probeId = `probe-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    let resolved = false;
+    const settle = (v: boolean) => {
+      if (resolved) return;
+      resolved = true;
+      setDicePlusAvailable(v);
+    };
+
+    const onResponse = (event: any) => {
+      if (event?.data?.rollId === probeId) settle(true);
+    };
+    const unsubResult = OBR.broadcast.onMessage(DICE_PLUS_ROLL_RESULT, onResponse);
+    const unsubError = OBR.broadcast.onMessage(DICE_PLUS_ROLL_ERROR, onResponse);
+
+    OBR.broadcast
+      .sendMessage(
+        DICE_PLUS_ROLL_REQUEST,
+        {
+          rollId: probeId,
+          diceNotation: "1d1",
+          rollTarget: "self",
+          source: PLUGIN_ID,
+          showResults: false,
+          timestamp: Date.now(),
+        },
+        { destination: "LOCAL" }
+      )
+      .catch(() => {});
+
+    const timer = setTimeout(() => settle(false), 1500);
+
+    return () => {
+      clearTimeout(timer);
+      unsubResult();
+      unsubError();
+    };
+  }, []);
 
   const refreshItems = useCallback(async () => {
     const sceneItems = await OBR.scene.items.getItems(
@@ -662,6 +708,7 @@ export function useInitiative() {
     playerId,
     isGM,
     canEdit,
+    dicePlusAvailable,
     focusItem,
     updateCount,
     updateModifier,

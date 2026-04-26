@@ -55,6 +55,13 @@ html, body, #root { height: 100%; background: transparent; }
   justify-content: center;
 }
 
+/* When dice buttons are hidden (player without Dice+), drop the reserved
+   22px below-card area. Combined with a shorter popover height, this means
+   the iframe blocks less mouse area on the map. */
+.app-hbar.no-dice .hbar-row-items {
+  min-height: 100px;
+}
+
 .hbar-row-controls {
   display: flex;
   align-items: center;

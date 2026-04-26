@@ -19,6 +19,9 @@ const COLLAPSED_WIDTH = 120;
 const COLLAPSED_HEIGHT = 40;
 const EXPANDED_WIDTH = 720;
 const EXPANDED_HEIGHT = 162;
+// Same panel without the 22px reserved for below-card dice buttons. Used
+// when the user has no way to roll dice (player without Dice+).
+const EXPANDED_HEIGHT_NO_DICE = 140;
 
 export const LangContext = createContext<Lang>("zh");
 
@@ -42,6 +45,7 @@ function App() {
     prevTurn,
     endCombat,
     requestEndTurn,
+    dicePlusAvailable,
   } = useInitiative();
 
   // React state is the authoritative source — not window.innerWidth. The old
@@ -63,6 +67,11 @@ function App() {
     OBR.popover.setHeight(POPOVER_ID, h).catch(() => {});
   }, []);
 
+  // Whether dice buttons can ever appear in this client. GM always rolls
+  // locally; players need Dice+. While probing (null) we show buttons,
+  // settling to false hides them.
+  const canShowDice = isGM || dicePlusAvailable !== false;
+
   const setPanelExpanded = useCallback((next: boolean) => {
     if (next === expandedRef.current) return;
     expandedRef.current = next;
@@ -75,11 +84,21 @@ function App() {
     setTransitioning(true);
     setExpanded(next);
     const w = next ? EXPANDED_WIDTH : COLLAPSED_WIDTH;
-    const h = next ? EXPANDED_HEIGHT : COLLAPSED_HEIGHT;
+    const h = next
+      ? (canShowDice ? EXPANDED_HEIGHT : EXPANDED_HEIGHT_NO_DICE)
+      : COLLAPSED_HEIGHT;
     OBR.popover.setWidth(POPOVER_ID, w).catch(() => {});
     OBR.popover.setHeight(POPOVER_ID, h).catch(() => {});
     setTimeout(() => setTransitioning(false), 260);
-  }, []);
+  }, [canShowDice]);
+
+  // When dice availability changes (probe finishes / player gains Dice+),
+  // resize the open popover to match. Skip if collapsed.
+  useEffect(() => {
+    if (!expanded) return;
+    const h = canShowDice ? EXPANDED_HEIGHT : EXPANDED_HEIGHT_NO_DICE;
+    OBR.popover.setHeight(POPOVER_ID, h).catch(() => {});
+  }, [canShowDice, expanded]);
 
   const toggleExpanded = useCallback(() => {
     setPanelExpanded(!expanded);
@@ -170,7 +189,7 @@ function App() {
 
   return (
     <LangContext.Provider value={lang}>
-      <div className={`app-hbar ${stateClass} ${transitioning ? "transitioning" : ""}`}>
+      <div className={`app-hbar ${stateClass} ${transitioning ? "transitioning" : ""} ${canShowDice ? "" : "no-dice"}`}>
         {/* Controls row — single centered cluster: 折叠 / state / 战斗按钮 /
             EN / 关于. Everything hugs the middle so it doesn't waste edge space. */}
         <div className="hbar-row hbar-row-controls">
@@ -251,6 +270,7 @@ function App() {
             playerId=""
             diceRolling={diceRolling}
             canEdit={canEdit}
+            canShowDice={canShowDice}
             onFocus={handleClick}
             onHover={setHoveredId}
             onUpdateCount={updateCount}

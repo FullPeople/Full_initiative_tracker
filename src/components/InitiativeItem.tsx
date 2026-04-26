@@ -14,6 +14,7 @@ interface Props {
   preparing: boolean;
   isGM: boolean;
   canEdit: boolean;
+  canShowDice: boolean;
   diceRolling: boolean;
   onFocus: (id: string) => void;
   onHover?: (id: string | null) => void;
@@ -30,8 +31,9 @@ interface Props {
 // when applicable.
 export function InitiativeItemRow({
   id, name, count, modifier, active, rolled, imageUrl,
-  inCombat, preparing, isGM, canEdit, diceRolling, onFocus, onHover,
-  onUpdateCount, onUpdateModifier, onRoll, onEndTurn, endTurnLabel,
+  inCombat, preparing, isGM, canEdit, canShowDice, diceRolling,
+  onFocus, onHover, onUpdateCount, onUpdateModifier, onRoll,
+  onEndTurn, endTurnLabel,
 }: Props) {
   const [editingCount, setEditingCount] = useState(false);
   const [editingMod, setEditingMod] = useState(false);
@@ -64,8 +66,9 @@ export function InitiativeItemRow({
   const modStr = modifier >= 0 ? `+${modifier}` : `${modifier}`;
 
   const showRollButtons =
-    (preparing && canEdit && (!rolled || isGM)) ||
-    (inCombat && isGM);
+    canShowDice &&
+    ((preparing && canEdit && (!rolled || isGM)) ||
+      (inCombat && isGM));
 
   const disableRoll = !isGM && preparing && diceRolling;
 
