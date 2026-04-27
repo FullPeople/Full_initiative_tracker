@@ -141,10 +141,7 @@ function App() {
   // Clean up on unmount
   useEffect(() => () => { clearAllRings(); }, []);
 
-  const changeLang = (newLang: Lang) => {
-    setLang(newLang);
-    setStoredLang(newLang);
-  };
+  // Language selector removed — set in suite Settings.
 
   const handleRoll = useCallback(async (itemId: string, type: RollType) => {
     if (isGM || combatState.inCombat) {
@@ -234,17 +231,8 @@ function App() {
               />
             )}
 
-            <select
-              className="lang-select"
-              value={lang}
-              onChange={(e) => changeLang((e.target as HTMLSelectElement).value as Lang)}
-              title="Language"
-            >
-              <option value="en">EN</option>
-              <option value="zh">中文</option>
-            </select>
-            {/* About button removed — the suite's centralized About panel
-                covers Initiative along with the other modules. */}
+            {/* CN/EN selector + About button removed — both centrally
+                controlled by the suite Settings / About panels. */}
           </div>
         </div>
 
