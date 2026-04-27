@@ -243,19 +243,8 @@ function App() {
               <option value="en">EN</option>
               <option value="zh">中文</option>
             </select>
-            <button
-              className="about-btn"
-              onClick={() => {
-                OBR.modal.open({
-                  id: `${METADATA_KEY}/about`,
-                  url: `${import.meta.env.BASE_URL}about.html`,
-                  width: 420, height: 560,
-                });
-              }}
-              title={t(lang, "about")}
-            >
-              {t(lang, "about")}
-            </button>
+            {/* About button removed — the suite's centralized About panel
+                covers Initiative along with the other modules. */}
           </div>
         </div>
 
